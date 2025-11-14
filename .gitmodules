@@ -1,0 +1,3 @@
+[submodule "crate/dlt-format-parser"]
+	path = crate/dlt-format-parser
+	url = git@github.com:bolitecenv/dlt-format-parser.git

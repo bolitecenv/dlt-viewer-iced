@@ -5,8 +5,7 @@ use iced::{
     border::Radius,
     widget::{Space, button, checkbox, column, container, row, text, text_input},
 };
-use std::io::{Read, Write};
-use std::net::TcpStream;
+
 
 pub fn view<'a>(
     dark_mode: bool,
@@ -76,7 +75,7 @@ pub fn view<'a>(
             input_field_with_icon(
                 "Port",
                 "Enter server port number",
-                text_input("8080", tcp_port)
+                text_input("3490", tcp_port)
                     .on_input(Message::TcpPortChanged)
                     .padding(12)
                     .size(14)
@@ -370,36 +369,4 @@ fn connection_status_indicator(status: &str) -> Element<'_, Message> {
             ..Default::default()
         })
         .into()
-}
-
-// Simple TCP connection handler
-pub fn handle_tcp_connection(ip: &str, port: &str) -> Result<String, String> {
-    let address = format!("{}:{}", ip, port);
-
-    match TcpStream::connect(&address) {
-        Ok(mut stream) => {
-            println!("Successfully connected to {}", address);
-
-            // Send a simple message
-            let message = b"Hello from client";
-            stream
-                .write_all(message)
-                .map_err(|e| format!("Failed to send data: {}", e))?;
-
-            // Read response
-            let mut buffer = [0; 512];
-            match stream.read(&mut buffer) {
-                Ok(n) => {
-                    let response = String::from_utf8_lossy(&buffer[..n]);
-                    println!("Received: {}", response);
-                    Ok(format!("Connected to {}", address))
-                }
-                Err(e) => {
-                    println!("Failed to read response: {}", e);
-                    Ok(format!("Connected to {}", address))
-                }
-            }
-        }
-        Err(e) => Err(format!("Connection failed: {}", e)),
-    }
 }

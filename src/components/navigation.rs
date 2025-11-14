@@ -1,16 +1,14 @@
-use crate::message::{Message, Page};
+use crate::{app::ICON_FONT, message::{Message, Page}};
 use iced::{
-    Alignment, Border, Color, Element, Font, Length, Theme,
-    widget::{button, column, container, row, text},
+    Alignment, Border, Color, Element, Length, Theme, widget::{Button, button, column, container, row, text}
 };
 
-const ICON_FONT: Font = Font::with_name("Font Awesome 7 Free");
 
 // Font Awesome Unicode characters
 const ICON_OVERVIEW: &str = "\u{f080}"; // chart-bar
 const ICON_ANALYTICS: &str = "\u{f015}"; // chart-line  
 const ICON_REPORTS: &str = "\u{f15c}"; // file
-const ICON_SETTINGS: &str = "\u{f085}"; // gear/cog
+const ICON_SETTINGS: &str = "\u{f013}"; // gear/cog
 
 pub fn view(current_page: Page, dark_mode: bool) -> Element<'static, Message> {
     let theme_color = if dark_mode {
@@ -21,10 +19,10 @@ pub fn view(current_page: Page, dark_mode: bool) -> Element<'static, Message> {
 
     let nav_items = vec![
         (ICON_OVERVIEW, "Overview", Page::Overview),
-        (ICON_ANALYTICS, "Analytics", Page::Analytics),
         (ICON_REPORTS, "Reports", Page::Reports),
         (ICON_SETTINGS, "Settings", Page::Settings),
-        ("\u{f073}", "Gantt Chart", Page::GanttChart),
+        ("\u{f0ce}", "Table", Page::Table),
+        ("\u{f43c}", "Chart Canvas", Page::ChartCanvas),
     ];
 
     let mut nav_buttons = column![].spacing(5).padding(10).align_x(Alignment::Start);
@@ -47,7 +45,7 @@ pub fn view(current_page: Page, dark_mode: bool) -> Element<'static, Message> {
             Color::from_rgb(0.3, 0.3, 0.3)
         };
 
-        let btn = button(
+        let btn: button::Button<'_, Message> = button(
             row![
                 text(icon)
                     .font(ICON_FONT)

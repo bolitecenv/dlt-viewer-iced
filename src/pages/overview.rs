@@ -42,23 +42,6 @@ pub fn view(dashboard: &Dashboard) -> Element<Message> {
     .spacing(20)
     .padding([20, 0]);
 
-    let controls = row![
-        button(text("+ Revenue").center())
-            .on_press(Message::IncrementMetric1)
-            .padding(10),
-        button(text("- Revenue").center())
-            .on_press(Message::DecrementMetric1)
-            .padding(10),
-        button(text("+ Orders").center())
-            .on_press(Message::IncrementMetric2)
-            .padding(10),
-        button(text("Refresh Data").center())
-            .on_press(Message::RefreshData)
-            .padding(10),
-    ]
-    .spacing(10)
-    .padding([20, 0]);
-
     let status = text("Status: System Running | Uptime: 99.9% | Last Updated: Now")
         .size(14)
         .color(Color::from_rgb(0.5, 0.5, 0.5));
@@ -68,7 +51,6 @@ pub fn view(dashboard: &Dashboard) -> Element<Message> {
         vertical_space().height(20),
         cards_row,
         vertical_space().height(20),
-        controls,
         vertical_space().height(20),
         status,
     ]
