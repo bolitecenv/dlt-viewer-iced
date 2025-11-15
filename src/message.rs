@@ -1,5 +1,5 @@
 use iced::Point;
-
+use crate::plugin::PluginMessage;
 use crate::{components::view::{gantt_chart_setting::ModuleGanttChartWidgetSettingsMessage, module_view_settings::{ChartType, ModuleChartWidgetSettingsMessage}}, module_view::{ModuleWidget, canvas::ContextMenuAction}, pages::table::DltMessageRow};
 
 #[derive(Debug, Clone)]
@@ -63,13 +63,17 @@ pub enum Message {
 
     ToggleGrid,
     ToggleLegend,
+
+    PluginSelected(String),
+    PluginMessage(String, PluginMessage),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Page {
     Overview,
     Reports,
     Settings,
     Table,
     ChartCanvas,
+    PluginPage(String),
 }

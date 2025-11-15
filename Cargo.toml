@@ -12,3 +12,6 @@ chrono = "0.4"
 dlt_format_parser = { path = "./crate/dlt-format-parser" }
 futures = "0.3.31"
 regex = "1.12.2"
+
+[features]
+plugin_example = []

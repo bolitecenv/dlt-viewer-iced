@@ -4,8 +4,12 @@ mod message;
 mod pages;
 mod types;
 mod module_view;
+mod plugin;
+mod plugins;
+mod plugin_registry;
 
 use app::Dashboard;
+
 
 pub fn main() -> iced::Result {
     iced::application("Dashboard App", Dashboard::update, Dashboard::view)

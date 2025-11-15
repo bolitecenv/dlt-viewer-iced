@@ -6,6 +6,8 @@ use crate::message::{Message, Page};
 use crate::module_view::module_widget::{ChartData, ChartSettings, ChartWidget, GanttChartData, GanttChartDataPoint, GanttChartSettings, GanttChartWidget, ModuleWidgetCommonSettings, WidgetTpye};
 use crate::pages::{self};
 use crate::components::tcp_handler::tcp_connection_subscription;
+use crate::plugin::DashboardContext;
+use crate::plugin_registry::PluginRegistry;
 use crate::types::FrontDltEcuItem;
 use crate::module_view;
 use crate::module_view::{ModuleWidget, DragState};
@@ -65,6 +67,8 @@ pub struct Dashboard {
     pub chart_settings_modal: ModalWindow_ModuleChartWidgetSettingsView,
     pub gantt_chart_settings_modal: ModalWindow_ModuleGanttChartWidgetSettingsView,
     pub shift_pressed: bool,
+    pub registry: PluginRegistry,
+    pub current_plugin: Option<String>,
 }
 
 impl Default for Dashboard {
@@ -140,6 +144,8 @@ impl Default for Dashboard {
             chart_settings_modal: ModalWindow_ModuleChartWidgetSettingsView::new(),
             gantt_chart_settings_modal: ModalWindow_ModuleGanttChartWidgetSettingsView::new(),
             shift_pressed: false,
+            registry: PluginRegistry::new(),
+            current_plugin: None,
         }
     }
 }
@@ -726,6 +732,15 @@ impl Dashboard {
                     _ => {}
                 }
             }
+            Message::PluginSelected(name) => {
+                self.current_plugin = Some(name);
+                return Task::none()
+            }
+            Message::PluginMessage(plugin_name, msg) => {
+                let context = self.get_context();
+                let task = self.registry.update(&plugin_name, msg, &context);
+                return task.map(move |plugin_msg| Message::PluginMessage(plugin_name.clone(), plugin_msg));
+            }
             _ => {}
         }
         Task::none()
@@ -758,7 +773,7 @@ impl Dashboard {
 
     pub fn view(&self) -> Element<Message> {
         let top = top_bar::view(self.dark_mode);
-        let nav = navigation::view(self.current_page, self.dark_mode);
+        let nav = navigation::view(self.current_page.clone(), &self.registry, self.dark_mode);
 
         let canvas_content = module_view::canvas::view(
             self.module_widgets.clone(), 
@@ -777,6 +792,19 @@ impl Dashboard {
             ),
             Page::Table => pages::table::view(self.dark_mode, &self.messages),
             Page::ChartCanvas => canvas_content,
+            Page::PluginPage(ref plugin_name) => {
+                if let Some(plugin) = self.registry.get_plugin(plugin_name) {
+                    plugin.view(&self.get_context()).map(move |plugin_msg| {
+                        Message::PluginMessage(plugin_name.clone(), plugin_msg)
+                    })
+                } else {
+                    pages::placeholder::view(
+                        "Plugin Not Found",
+                        "❓",
+                        self.dark_mode,
+                    )
+                }
+            }
         };
 
         let content_area = container(main_content)
@@ -813,6 +841,15 @@ impl Dashboard {
             ].into()
         } else {
             base_view.into()
+        }
+    }
+}
+
+impl Dashboard {
+    fn get_context(&self) -> DashboardContext {
+        DashboardContext {
+            ecu_list: DLT_ECU_CONTEXT_STORE.lock().unwrap().clone(),
+            dlt_buffer: self.messages.clone(),
         }
     }
 }
