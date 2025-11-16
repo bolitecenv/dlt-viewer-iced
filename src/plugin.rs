@@ -4,9 +4,9 @@ use iced::{Element, Task};
 use crate::{pages::table::DltMessageRow, types::FrontDltEcuItem};
 
 #[derive(Debug, Clone)]
-pub struct DashboardContext {
-    pub ecu_list: Vec<FrontDltEcuItem>,
-    pub dlt_buffer: Vec<DltMessageRow>,
+pub struct DashboardContext<'a> {
+    pub ecu_list: &'a Vec<FrontDltEcuItem>,
+    pub dlt_buffer: &'a Vec<DltMessageRow>,
 }
 
 pub trait Plugin: Send + Sync {

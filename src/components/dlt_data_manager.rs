@@ -2,7 +2,7 @@ use rand::random;
 use regex::Regex;
 use std::sync::Mutex;
 
-use crate::types::FrontDltEcuItem;
+use crate::types::{FrontDltAppIdItem, FrontDltEcuItem};
 
 #[derive(Debug, Clone)]
 pub struct DltDataChartItem{
@@ -69,7 +69,6 @@ impl DltDataRegexItem {
 }
 
 
-pub static DLT_ECU_CONTEXT_STORE: Mutex<Vec<FrontDltEcuItem>> = Mutex::new(Vec::new());
 pub static DLT_DATA_REGEX_STORE: Mutex<Vec<DltDataRegexItem>> = Mutex::new(Vec::new());
 
 pub fn analzye_dlt_data_regex(dlt_payload: String) {
@@ -121,3 +120,20 @@ pub fn add_dlt_data_regex_item(regex: String, description: String, item_type: Dl
 
     store.push(new_item);
 }
+
+pub fn apply_app_update(ecuid: String, ecu_list: &mut Vec<FrontDltEcuItem>, app_info: &FrontDltAppIdItem) -> Result<(), String> {
+    let ecu_apps = ecu_list
+        .iter_mut()  // Changed from .iter() to .iter_mut()
+        .find(|ecu| ecu.ecuid == ecuid)
+        .ok_or_else(|| format!("ECU {} not found", ecuid))?
+        .app_ids
+        .iter_mut()  // Changed from .iter() to .iter_mut()
+        .find(|app| app.apid == app_info.apid)
+        .ok_or_else(|| format!("App ID {} not found for ECU {}", app_info.apid, ecuid))?;
+    
+    // Update the app info
+    *ecu_apps = app_info.clone();
+    
+    Ok(())
+}
+

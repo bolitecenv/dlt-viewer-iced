@@ -1,4 +1,5 @@
 use iced::Point;
+use crate::components::tcp_handler::EcuUpdateInfo;
 use crate::plugin::PluginMessage;
 use crate::{components::view::{gantt_chart_setting::ModuleGanttChartWidgetSettingsMessage, module_view_settings::{ChartType, ModuleChartWidgetSettingsMessage}}, module_view::{ModuleWidget, canvas::ContextMenuAction}, pages::table::DltMessageRow};
 
@@ -66,6 +67,9 @@ pub enum Message {
 
     PluginSelected(String),
     PluginMessage(String, PluginMessage),
+
+    EcuListUpdate(Vec<EcuUpdateInfo>),
+    BatchUpdate {dlt_messages: Vec<DltMessageRow>, ecu_updates: Vec<EcuUpdateInfo>},
 }
 
 #[derive(Debug, Clone, PartialEq)]

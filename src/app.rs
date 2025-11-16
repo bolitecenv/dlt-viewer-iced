@@ -5,14 +5,14 @@ use crate::components::{navigation, top_bar};
 use crate::message::{Message, Page};
 use crate::module_view::module_widget::{ChartData, ChartSettings, ChartWidget, GanttChartData, GanttChartDataPoint, GanttChartSettings, GanttChartWidget, ModuleWidgetCommonSettings, WidgetTpye};
 use crate::pages::{self};
-use crate::components::tcp_handler::tcp_connection_subscription;
+use crate::components::tcp_handler::{apply_ecu_updates, tcp_connection_subscription};
 use crate::plugin::DashboardContext;
 use crate::plugin_registry::PluginRegistry;
-use crate::types::FrontDltEcuItem;
+use crate::types::{FrontDltAppIdItem, FrontDltEcuItem};
 use crate::module_view;
 use crate::module_view::{ModuleWidget, DragState};
 use crate::module_view::canvas::{ContextMenu, ContextMenuAction, handle_mouse_wheel};  // NEW: Add context menu imports
-use crate::components::dlt_data_manager::{DLT_DATA_REGEX_STORE, DLT_ECU_CONTEXT_STORE, DltDataChartItem, DltDataGattChartItem, DltDataModuleItem, DltDataRegexItem, add_dlt_data_regex_item};
+use crate::components::dlt_data_manager::{DLT_DATA_REGEX_STORE, DltDataChartItem, DltDataGattChartItem, DltDataModuleItem, DltDataRegexItem, add_dlt_data_regex_item};
 
 use iced::{Color, Font, Point, Size, font::{Family, Stretch, Weight, Style}};
 use iced::futures::{self};
@@ -69,6 +69,7 @@ pub struct Dashboard {
     pub shift_pressed: bool,
     pub registry: PluginRegistry,
     pub current_plugin: Option<String>,
+    pub ecu_list: Vec<FrontDltEcuItem>,
 }
 
 impl Default for Dashboard {
@@ -90,35 +91,6 @@ impl Default for Dashboard {
                 },
             ),
         );
-
-        let mut dlt_ecu_item = DLT_ECU_CONTEXT_STORE.lock().unwrap();
-        // Add ECU1 with some apps and contexts
-        dlt_ecu_item.push(FrontDltEcuItem {
-            ecuid: "ECU1".to_string(),
-            app_ids: vec![
-                FrontDltAppIdItem {
-                    apid: "APP1".to_string(),
-                    description: "Application 1".to_string(),
-                    ctx_ids: vec![
-                        FrontDltCtxIdItem {
-                            context_id: "CTX1".to_string(),
-                            description: "Context 1".to_string(),
-                            log_level: 3,
-                            trace_status: 1,
-                        },
-                        FrontDltCtxIdItem {
-                            context_id: "CTX2".to_string(),
-                            description: "Context 2".to_string(),
-                            log_level: 4,
-                            trace_status: 0,
-                        },
-                    ],
-                },
-            ],
-            description: "Engine Control Unit".to_string(),
-        });
-
-        println!("Initialized DLT ECU Context Store: {:?}", dlt_ecu_item);
 
         Self {
             metric1: 42,
@@ -146,6 +118,7 @@ impl Default for Dashboard {
             shift_pressed: false,
             registry: PluginRegistry::new(),
             current_plugin: None,
+            ecu_list: Vec::new(),
         }
     }
 }
@@ -278,8 +251,8 @@ impl Dashboard {
             },
             Message::OpenDltSettings => {
                 self.dlt_settings.open();
-                let dlt_item = DLT_ECU_CONTEXT_STORE.lock().unwrap();
-                self.dlt_settings.set_dlt_items(dlt_item.clone());
+                // let dlt_item = DLT_ECU_CONTEXT_STORE.lock().unwrap();
+                // self.dlt_settings.set_dlt_items(dlt_item.clone());
 
             }
             Message::CloseDltSettings => {
@@ -298,8 +271,8 @@ impl Dashboard {
             }
             Message::RefreshDltItems => {
                 println!("Refreshing DLT items...");
-                let dlt_item = DLT_ECU_CONTEXT_STORE.lock().unwrap().clone();
-                self.dlt_settings.set_dlt_items(dlt_item.clone());
+                // let dlt_item = DLT_ECU_CONTEXT_STORE.lock().unwrap().clone();
+                // self.dlt_settings.set_dlt_items(dlt_item.clone());
             }
             Message::ApplyDltSettings => {
                 println!("Applying DLT settings...");
@@ -737,9 +710,29 @@ impl Dashboard {
                 return Task::none()
             }
             Message::PluginMessage(plugin_name, msg) => {
-                let context = self.get_context();
+                // Clone the dashboard data so the context does not hold an immutable borrow of `self`
+                // while we need a mutable borrow for `self.registry.update`.
+                let ecu_list_clone = self.ecu_list.clone();
+                let dlt_buffer_clone = self.messages.clone();
+                let context = DashboardContext {
+                    ecu_list: &ecu_list_clone,
+                    dlt_buffer: &dlt_buffer_clone,
+                };
                 let task = self.registry.update(&plugin_name, msg, &context);
                 return task.map(move |plugin_msg| Message::PluginMessage(plugin_name.clone(), plugin_msg));
+            }
+            Message::EcuListUpdate(ecu_updates) => {
+                // Apply ECU updates to your ecu_list
+                apply_ecu_updates(&mut self.ecu_list, ecu_updates);
+            }
+
+            Message::BatchUpdate { dlt_messages, ecu_updates } => {
+                // Handle both DLT messages and ECU updates
+                // 1. Process DLT messages (add to your message table, etc.)
+                self.process_dlt_messages(dlt_messages);
+
+                // 2. Apply ECU updates
+                apply_ecu_updates(&mut self.ecu_list, ecu_updates);
             }
             _ => {}
         }
@@ -846,10 +839,52 @@ impl Dashboard {
 }
 
 impl Dashboard {
-    fn get_context(&self) -> DashboardContext {
+    fn get_context(&self) -> DashboardContext<'_> {
         DashboardContext {
-            ecu_list: DLT_ECU_CONTEXT_STORE.lock().unwrap().clone(),
-            dlt_buffer: self.messages.clone(),
+            ecu_list: &self.ecu_list,
+            dlt_buffer: &self.messages,
         }
+    }
+
+    pub fn get_ecu_apps(&self, ecu_id: &str) -> Option<&Vec<FrontDltAppIdItem>> {
+        self.ecu_list
+            .iter()
+            .find(|ecu| ecu.ecuid == ecu_id)
+            .map(|ecu| &ecu.app_ids)
+    }
+
+    /// Get a specific app info
+    pub fn get_app_info(&self, ecu_id: &str, app_id: &str) -> Option<&FrontDltAppIdItem> {
+        self.ecu_list
+            .iter()
+            .find(|ecu| ecu.ecuid == ecu_id)
+            .and_then(|ecu| ecu.app_ids.iter().find(|app| app.apid == app_id))
+    }
+
+    /// Get all ECU IDs
+    pub fn get_all_ecu_ids(&self) -> Vec<String> {
+        self.ecu_list.iter().map(|ecu| ecu.ecuid.clone()).collect()
+    }
+
+    /// Get all app IDs for an ECU
+    pub fn get_all_app_ids(&self, ecu_id: &str) -> Vec<String> {
+        self.ecu_list
+            .iter()
+            .find(|ecu| ecu.ecuid == ecu_id)
+            .map(|ecu| ecu.app_ids.iter().map(|app| app.apid.clone()).collect())
+            .unwrap_or_default()
+    }
+
+    /// Get context count for an app
+    pub fn get_context_count(&self, ecu_id: &str, app_id: &str) -> usize {
+        self.get_app_info(ecu_id, app_id)
+            .map(|app| app.ctx_ids.len())
+            .unwrap_or(0)
+    }
+
+    fn process_dlt_messages(&mut self, messages: Vec<DltMessageRow>) {
+        // Add messages to your table or process them as needed
+        println!("Received {} DLT messages", messages.len());
+        // ... your message processing logic
     }
 }
