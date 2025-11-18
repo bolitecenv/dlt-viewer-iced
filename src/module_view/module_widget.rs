@@ -97,6 +97,88 @@ impl ModuleWidget {
             dlt_data_regex_item : None,
         }
     }
+
+    pub fn default_gantt_chart_widget(id: usize, position: Point, size: Size) -> Self {
+        let common_settings = ModuleWidgetCommonSettings {
+            title: "Gantt Chart".to_string(),
+            show_title: true,
+            background_color: Color::from_rgb(1.0, 1.0, 1.0),
+            color: Color::from_rgb(0.0, 0.0, 0.0),
+            x_zoom: 1.0,
+            y_zoom: 1.0,
+            x_offset: 0.0,
+            y_offset: 0.0,
+        };
+
+        let gantt_chart_settings = GanttChartSettings {
+            time_scale: 1.0,
+            show_dependencies: false,
+        };
+
+        let gantt_chart_data = GanttChartData {
+            data_points: Vec::new(),
+        };
+
+        let gantt_chart_widget = GanttChartWidget {
+            chart_data: gantt_chart_data,
+            settings: gantt_chart_settings,
+        };
+
+        let dlt_data_regex_item = DltDataRegexItem {
+            id,
+            regex: r"([^>]+),([D]),(\d+)".to_string(),
+            description: "Gantt Chart Data Extractor".to_string(),
+        };
+
+        Self {
+            id,
+            position,
+            size,
+            settings: common_settings,
+            widget_type: WidgetTpye::GanttChart(gantt_chart_widget),
+            dlt_data_regex_item : Some(dlt_data_regex_item),
+        }
+    }
+
+    pub fn default_chart_widget(id: usize, position: Point, size: Size) -> Self {
+        let common_settings = ModuleWidgetCommonSettings {
+            title: "Chart".to_string(),
+            show_title: true,
+            background_color: Color::from_rgb(1.0, 1.0, 1.0),
+            color: Color::from_rgb(0.0, 0.0, 0.0),
+            x_zoom: 1.0,
+            y_zoom: 1.0,
+            x_offset: 0.0,
+            y_offset: 0.0,
+        };
+
+        let chart_settings = ChartSettings {
+            show_grid: true,
+            show_legend: true,
+            line_smoothness: 0.5,
+            x_label: "X-Axis".to_string(),
+            y_label: "Y-Axis".to_string(),
+        };
+
+        let chart_data = ChartData {
+            x_value: 0.0,
+            y_value: 0.0,
+        };
+
+        let chart_widget = ChartWidget {
+            chart_data: vec![chart_data],
+            settings: chart_settings,
+        };
+
+        Self {
+            id,
+            position,
+            size,
+            settings: common_settings,
+            widget_type: WidgetTpye::LineChart(chart_widget),
+            dlt_data_regex_item : None,
+        }
+    }
 }
 
 impl WidgetTpye {

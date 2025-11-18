@@ -29,6 +29,7 @@ impl Plugin for ExamplePlugin {
             if name == "increment" {
                 self.counter += 1;
                 println!("context ecu_list length: {}", context.ecu_list.len());
+                println!("context dlt_buffer length: {}", context.dlt_buffer.len());
             }
         }
         Task::none()
