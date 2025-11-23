@@ -63,6 +63,7 @@ pub struct Dashboard {
     pub connection_status: String,
     pub should_connect: bool,
     pub messages: Vec<DltMessageRow>,
+    pub message_id_counter: u32,
     pub max_messages: usize,
     pub module_widgets: HashMap<usize, ModuleWidget>,
     pub next_id: usize,
@@ -87,12 +88,13 @@ impl Default for Dashboard {
 
         Self {
             current_page: Page::Overview,
-            dark_mode: true,
+            dark_mode: false,
             tcp_ip: "127.0.0.1".to_string(),
             tcp_port: "3490".to_string(),
             connection_status: "Disconnected".to_string(),
             should_connect: false,
             messages: Vec::new(),
+            message_id_counter: 0,
             max_messages: 1000,
             dlt_settings: DltSettingsView::new(),
             module_widgets: HashMap::new(),
@@ -720,7 +722,7 @@ impl Dashboard {
             .unwrap_or(0)
     }
 
-    fn process_dlt_messages(&mut self, messages: Vec<DltMessageRow>) {
+    fn process_dlt_messages(&mut self, mut messages: Vec<DltMessageRow>) {
         println!("Received {} DLT messages", messages.len());
         if self.messages.len() > self.max_messages {
             let excess = self.messages.len() + messages.len() - self.max_messages;
@@ -875,8 +877,12 @@ impl Dashboard {
                             }
                         }
         }
-
-        self.messages.extend(messages);
+        for row in &mut messages {
+            row.index = self.message_id_counter;
+            self.message_id_counter += 1;
+            self.messages.push(row.clone());
+        }
+        
     }
 
     fn add_regex_item(&mut self, item: DltDataRegexItem) {

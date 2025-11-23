@@ -9,7 +9,7 @@ use dlt_format_parser::DltFormat;
 
 #[derive(Debug, Clone)]
 pub struct DltMessageRow {
-    pub index: usize,
+    pub index: u32,
     pub timestamp: String,
     pub ecu_id: String,
     pub app_id: String,
@@ -21,7 +21,7 @@ pub struct DltMessageRow {
 
 impl DltMessageRow {
     pub fn new(
-        index: usize,
+        index: u32,
         timestamp: String,
         ecu_id: String,
         app_id: String,
@@ -47,7 +47,7 @@ impl DltMessageRow {
     ) -> Self {
         Self {
             index: 0, // Will be set later
-            timestamp: "0".to_string(),
+            timestamp: dlt_format.get_timestamp_string(),
             ecu_id: dlt_format.standard_header_extra.get_ecu().trim_end_matches('\0').to_string(),
             app_id: dlt_format.extended_header.get_apid().trim_end_matches('\0').to_string(),
             context_id: dlt_format.extended_header.get_ctid().trim_end_matches('\0').to_string(),

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use iced::Task;
 
 use crate::plugin::{DashboardContext, Plugin, PluginMessage};
-use crate::plugins::{example, weather};
+use crate::plugins::{example};
 
 pub struct PluginRegistry {
     plugins: HashMap<String, Box<dyn Plugin>>,
@@ -23,7 +23,6 @@ impl PluginRegistry {
     #[allow(unused_mut)]
     fn register_all(&mut self) {
         self.register::<example::ExamplePlugin>();
-        self.register::<weather::WeatherPlugin>();
     }
     
     pub fn register<P: Plugin + 'static>(&mut self) {

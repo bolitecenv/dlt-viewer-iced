@@ -6,4 +6,3 @@ use std::path::Path;
 // Or use a macro to auto-generate this
 
 pub mod example;
-pub mod weather;

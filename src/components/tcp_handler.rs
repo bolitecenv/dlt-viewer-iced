@@ -208,13 +208,15 @@ fn parse_dlt_messages(buffer: &mut Vec<u8>, messages_parsed: &mut usize) -> Opti
 
                             Mtin::Control(_) => {
                                 println!("Control message received");
+
+                                let dlt_header_info = DltMessageRow::from_dlt_format(&dlt_format);
                                 
                                 let mut parser = ServiceParser::new();
                                 if let Ok(service_msg) = parser.parse_raw_message(&dlt_format.payload) {
                                     println!("Service ID: {}", service_msg.service_id);
                                     
                                     // Extract ECU information
-                                    if let Ok(ecu_updates) = extract_service_info(service_msg) {
+                                    if let Ok(ecu_updates) = extract_service_info(service_msg, dlt_header_info) {
                                         service_responses.push(ecu_updates);
                                     }
                                 }
@@ -279,9 +281,10 @@ fn parse_dlt_messages(buffer: &mut Vec<u8>, messages_parsed: &mut usize) -> Opti
 // ============================================================================
 
 fn extract_service_info(
-    service_msg: dlt_format_parser::ServiceMessage
+    service_msg: dlt_format_parser::ServiceMessage,
+    dlt_header_info: DltMessageRow,
 ) -> Result<EcuUpdateInfo, String> {
-    let mut handler = ServiceInfoExtractor::new();
+    let mut handler = ServiceInfoExtractor::new(dlt_header_info);
     let mut parser = ServiceParser::new();
     
     parser.handle_message(&mut handler, service_msg)
@@ -305,12 +308,14 @@ pub struct AppUpdateInfo {
 
 struct ServiceInfoExtractor {
     extracted_info: Option<EcuUpdateInfo>,
+    dlt_header_info: Option<DltMessageRow>,
 }
 
 impl ServiceInfoExtractor {
-    fn new() -> Self {
+    fn new(dlt_header_info: DltMessageRow) -> Self {
         Self {
             extracted_info: None,
+            dlt_header_info: Some(dlt_header_info),
         }
     }
 }
