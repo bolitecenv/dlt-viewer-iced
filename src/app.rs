@@ -1,5 +1,5 @@
 use crate::components::dlt_data_manager::{
-    DltDataChartItem, DltDataGattChartItem, DltDataModuleItem, DltDataRegexItem
+    DltDataChartItem, DltDataGattChartItem, DltDataModuleItem, DltDataRegexItem,
 };
 use crate::components::tcp_handler::{apply_ecu_updates, tcp_connection_subscription};
 use crate::components::view::dlt_settings::{DltSelection, DltSettingsView};
@@ -18,6 +18,7 @@ use crate::module_view::module_widget::{
     GanttChartWidget, ModuleWidgetCommonSettings, WidgetTpye,
 };
 use crate::module_view::{DragState, ModuleWidget};
+use crate::pages::ecu_setting::{EcuListView, EcuSelection};
 use crate::pages::{self};
 use crate::plugin::DashboardContext;
 use crate::plugin_registry::PluginRegistry;
@@ -80,11 +81,13 @@ pub struct Dashboard {
     pub current_plugin: Option<String>,
     pub ecu_list: Vec<FrontDltEcuItem>,
     pub regex_items: Vec<DltDataRegexItem>,
+    pub ecu_list_view: EcuListView,
 }
 
 impl Default for Dashboard {
     fn default() -> Self {
         // Initialize with some example DLT data (optional)
+        let ecu_list = Vec::new();
 
         Self {
             current_page: Page::Overview,
@@ -111,6 +114,7 @@ impl Default for Dashboard {
             current_plugin: None,
             ecu_list: Vec::new(),
             regex_items: Vec::new(),
+            ecu_list_view: EcuListView::new(ecu_list.clone()),
         }
     }
 }
@@ -315,19 +319,21 @@ impl Dashboard {
                                 regex: r"X:(?P<Xvalue>\d+\.?\d*),Y:(?P<Yvalue>\d+\.?\d*)"
                                     .to_string(),
                                 description: "Simple X,Y Data Extractor".to_string(),
-                            }.into();
+                            }
+                            .into();
 
                             self.module_widgets.insert(self.next_id, module_widget);
                             self.next_id += 1;
                         }
                     }
                     ContextMenuAction::AddGanttChart => {
-                        self.module_widgets.insert(self.next_id, 
+                        self.module_widgets.insert(
+                            self.next_id,
                             ModuleWidget::default_gantt_chart_widget(
                                 self.next_id,
                                 Point::new(100.0, 100.0),
                                 Size::new(400.0, 300.0),
-                            )
+                            ),
                         );
                         self.next_id += 1;
                     }
@@ -574,6 +580,7 @@ impl Dashboard {
             Message::EcuListUpdate(ecu_updates) => {
                 // Apply ECU updates to your ecu_list
                 apply_ecu_updates(&mut self.ecu_list, ecu_updates);
+                self.ecu_list_view.set_ecu_list(self.ecu_list.clone());
             }
 
             Message::BatchUpdate {
@@ -584,6 +591,84 @@ impl Dashboard {
 
                 // 2. Apply ECU updates
                 apply_ecu_updates(&mut self.ecu_list, ecu_updates);
+                self.ecu_list_view.set_ecu_list(self.ecu_list.clone());
+
+            }
+            Message::SelectEcu(ecu_id) => {
+                self.ecu_list_view.toggle_ecu(ecu_id.clone());
+                self.ecu_list_view.select_item(EcuSelection::Ecu(ecu_id));
+            }
+            Message::SelectApp(ecu_id, app_id) => {
+                self.ecu_list_view
+                    .toggle_app(ecu_id.clone(), app_id.clone());
+                self.ecu_list_view
+                    .select_item(EcuSelection::App(ecu_id, app_id));
+            }
+            Message::SelectContext(ecu_id, app_id, ctx_id) => {
+                self.ecu_list_view
+                    .select_item(EcuSelection::Context(ecu_id, app_id, ctx_id));
+            }
+
+            // Context Editing Messages
+            Message::ECUViewEditContext(log_level, trace_status) => {
+                println!(
+                    "Editing context: log_level={}, trace_status={}",
+                    log_level, trace_status
+                );
+                self.ecu_list_view.start_editing(log_level, trace_status);
+            }
+            Message::UpdateLogLevel(value) => {
+                self.ecu_list_view.update_log_level(value);
+            }
+            Message::UpdateTraceStatus(value) => {
+                self.ecu_list_view.update_trace_status(value);
+            }
+            Message::SaveContextSettings => {
+                // Parse the input values and save
+                if let Ok(log_level) = self.ecu_list_view.edit_state.log_level_input.parse::<i8>() {
+                    if let Ok(trace_status) = self
+                        .ecu_list_view
+                        .edit_state
+                        .trace_status_input
+                        .parse::<i8>()
+                    {
+                        // Update the actual data in ecu_list
+                        if let EcuSelection::Context(ecu_id, app_id, ctx_id) =
+                            &self.ecu_list_view.selected_item
+                        {
+                            self.ecu_list_view.update_context_settings(
+                                ecu_id.clone(),
+                                app_id.clone(),
+                                ctx_id.clone(),
+                                log_level,
+                                trace_status,
+                            );
+                        }
+                    }
+                }
+                self.ecu_list_view.cancel_editing();
+            }
+            Message::CancelEditContext => {
+                self.ecu_list_view.cancel_editing();
+            }
+
+            // Injection Message Messages
+            Message::UpdateMessageType(value) => {
+                self.ecu_list_view.update_message_type(value);
+            }
+            Message::UpdateInjectionMessage(value) => {
+                self.ecu_list_view.update_message(value);
+            }
+            Message::InjectMessage(ecu_id, app_id, ctx_id, message) => {
+                // Implement your message injection logic here
+                println!(
+                    "Injecting message to {}/{}/{}: {}",
+                    ecu_id, app_id, ctx_id, message
+                );
+                // TODO: Call your DLT injection function
+            }
+            Message::ClearInjectionMessage => {
+                self.ecu_list_view.clear_message();
             }
             _ => {}
         }
@@ -628,6 +713,7 @@ impl Dashboard {
         let main_content = match self.current_page {
             Page::Overview => pages::overview::view(self),
             Page::Reports => pages::placeholder::view("Reports", "📋", self.dark_mode),
+            Page::ECUSetting => self.ecu_list_view.view(self.dark_mode),
             Page::Settings => pages::settings::view(
                 self.dark_mode,
                 &self.tcp_ip,
@@ -731,158 +817,141 @@ impl Dashboard {
 
         for row in &messages {
             if self.module_widgets.len() > 0 {
-                            for (_id, widget) in self.module_widgets.iter_mut() {
-                                let regex =
-                                    Regex::new(&widget.dlt_data_regex_item.as_ref().unwrap().regex)
-                                        .unwrap();
+                for (_id, widget) in self.module_widgets.iter_mut() {
+                    let regex =
+                        Regex::new(&widget.dlt_data_regex_item.as_ref().unwrap().regex).unwrap();
 
-                                if regex.is_match(&row.payload) {
-                                    match &mut widget.dlt_data_regex_item {
-                                        Some(item) => {
-                                            match &mut widget.widget_type {
-                                                WidgetTpye::LineChart(chart_widget) => {
-                                                    // extract x,y data and process
-                                                    let captures =
-                                                        regex.captures(&row.payload).unwrap();
-                                                    let x_value: f32 = captures
-                                                        .name("Xvalue")
-                                                        .unwrap()
-                                                        .as_str()
-                                                        .parse()
-                                                        .unwrap();
-                                                    let y_value: f32 = captures
-                                                        .name("Yvalue")
-                                                        .unwrap()
-                                                        .as_str()
-                                                        .parse()
-                                                        .unwrap();
+                    if regex.is_match(&row.payload) {
+                        match &mut widget.dlt_data_regex_item {
+                            Some(item) => {
+                                match &mut widget.widget_type {
+                                    WidgetTpye::LineChart(chart_widget) => {
+                                        // extract x,y data and process
+                                        let captures = regex.captures(&row.payload).unwrap();
+                                        let x_value: f32 = captures
+                                            .name("Xvalue")
+                                            .unwrap()
+                                            .as_str()
+                                            .parse()
+                                            .unwrap();
+                                        let y_value: f32 = captures
+                                            .name("Yvalue")
+                                            .unwrap()
+                                            .as_str()
+                                            .parse()
+                                            .unwrap();
 
-                                                    // Print colorized debug info
+                                        // Print colorized debug info
+                                        println!(
+                                            "\x1b[32m[DLT Data Matched]\x1b[0m Payload: '{}', Extracted x: {}, y: {}",
+                                            row.payload, x_value, y_value
+                                        );
+
+                                        chart_widget
+                                            .chart_data
+                                            .push(ChartData { x_value, y_value });
+                                    }
+                                    WidgetTpye::BarChart(chart_widget) => {
+                                        // extract x,y data and process
+                                        let captures = regex.captures(&row.payload).unwrap();
+                                        let x_value: f32 = captures
+                                            .name("Xvalue")
+                                            .unwrap()
+                                            .as_str()
+                                            .parse()
+                                            .unwrap();
+                                        let y_value: f32 = captures
+                                            .name("Yvalue")
+                                            .unwrap()
+                                            .as_str()
+                                            .parse()
+                                            .unwrap();
+
+                                        chart_widget
+                                            .chart_data
+                                            .push(ChartData { x_value, y_value });
+                                    }
+                                    WidgetTpye::GanttChart(_) => {
+                                        println!(
+                                            "Processing Gantt Chart DLT payload: {}",
+                                            row.payload
+                                        );
+                                        if let Some(captures) = regex.captures(&row.payload) {
+                                            let function_name = captures.get(1).unwrap().as_str();
+                                            let marker_type = captures.get(2).unwrap().as_str();
+
+                                            println!(
+                                                "\x1b[32mGantt Chart Marker Detected\x1b[0m: Function='{}', Type='{}'",
+                                                function_name, marker_type
+                                            );
+
+                                            let start_time: f32 = match row.timestamp.parse::<f32>()
+                                            {
+                                                Ok(v) => v,
+                                                Err(_) => {
                                                     println!(
-                                                        "\x1b[32m[DLT Data Matched]\x1b[0m Payload: '{}', Extracted x: {}, y: {}",
-                                                        row.payload, x_value, y_value
+                                                        "Warning: failed to parse timestamp '{}' to f32",
+                                                        row.timestamp
                                                     );
-
-                                                    chart_widget
-                                                        .chart_data
-                                                        .push(ChartData { x_value, y_value });
+                                                    0.0
                                                 }
-                                                WidgetTpye::BarChart(chart_widget) => {
-                                                    // extract x,y data and process
-                                                    let captures =
-                                                        regex.captures(&row.payload).unwrap();
-                                                    let x_value: f32 = captures
-                                                        .name("Xvalue")
-                                                        .unwrap()
-                                                        .as_str()
-                                                        .parse()
-                                                        .unwrap();
-                                                    let y_value: f32 = captures
-                                                        .name("Yvalue")
-                                                        .unwrap()
-                                                        .as_str()
-                                                        .parse()
-                                                        .unwrap();
+                                            };
 
-                                                    chart_widget
-                                                        .chart_data
-                                                        .push(ChartData { x_value, y_value });
-                                                }
-                                                WidgetTpye::GanttChart(_) => {
+                                            match marker_type {
+                                                "S" => {
+                                                    // Handle function start
                                                     println!(
-                                                        "Processing Gantt Chart DLT payload: {}",
-                                                        row.payload
+                                                        "Function '{}' started",
+                                                        function_name
                                                     );
-                                                    if let Some(captures) =
-                                                        regex.captures(&row.payload)
+                                                }
+                                                "E" => {
+                                                    // Handle function end
+                                                    println!("Function '{}' ended", function_name);
+                                                }
+                                                "D" => {
+                                                    // Handle function duration marker
+                                                    let duration: f32 = captures
+                                                        .get(3)
+                                                        .unwrap()
+                                                        .as_str()
+                                                        .parse()
+                                                        .unwrap();
+                                                    let end_time = start_time + duration;
+                                                    if let WidgetTpye::GanttChart(gantt_widget) =
+                                                        &mut widget.widget_type
                                                     {
-                                                        let function_name =
-                                                            captures.get(1).unwrap().as_str();
-                                                        let marker_type =
-                                                            captures.get(2).unwrap().as_str();
-
-                                                        println!(
-                                                            "\x1b[32mGantt Chart Marker Detected\x1b[0m: Function='{}', Type='{}'",
-                                                            function_name, marker_type
+                                                        gantt_widget.chart_data.data_points.push(
+                                                            GanttChartDataPoint {
+                                                                y_label: function_name.to_string(),
+                                                                start_time,
+                                                                end_time,
+                                                            },
                                                         );
-
-                                                        let start_time: f32 = match row
-                                                            .timestamp
-                                                            .parse::<f32>()
-                                                        {
-                                                            Ok(v) => v,
-                                                            Err(_) => {
-                                                                println!(
-                                                                    "Warning: failed to parse timestamp '{}' to f32",
-                                                                    row.timestamp
-                                                                );
-                                                                0.0
-                                                            }
-                                                        };
-
-                                                        match marker_type {
-                                                            "S" => {
-                                                                // Handle function start
-                                                                println!(
-                                                                    "Function '{}' started",
-                                                                    function_name
-                                                                );
-                                                            }
-                                                            "E" => {
-                                                                // Handle function end
-                                                                println!(
-                                                                    "Function '{}' ended",
-                                                                    function_name
-                                                                );
-                                                            }
-                                                            "D" => {
-                                                                // Handle function duration marker
-                                                                let duration: f32 = captures
-                                                                    .get(3)
-                                                                    .unwrap()
-                                                                    .as_str()
-                                                                    .parse()
-                                                                    .unwrap();
-                                                                let end_time =
-                                                                    start_time + duration;
-                                                                if let WidgetTpye::GanttChart(
-                                                                    gantt_widget,
-                                                                ) = &mut widget.widget_type
-                                                                {
-                                                                    gantt_widget.chart_data.data_points.push(
-                                                                        GanttChartDataPoint {
-                                                                            y_label: function_name.to_string(),
-                                                                            start_time,
-                                                                            end_time,
-                                                                        }
-                                                                    );
-                                                                    println!(
-                                                                        "Added Gantt chart data point: Function='{}', Start={}, End={}",
-                                                                        function_name,
-                                                                        start_time,
-                                                                        end_time
-                                                                    );
-                                                                }
-                                                            }
-                                                            _ => unreachable!(),
-                                                        }
+                                                        println!(
+                                                            "Added Gantt chart data point: Function='{}', Start={}, End={}",
+                                                            function_name, start_time, end_time
+                                                        );
                                                     }
                                                 }
-                                                _ => {}
+                                                _ => unreachable!(),
                                             }
                                         }
-                                        None => {}
                                     }
+                                    _ => {}
                                 }
                             }
+                            None => {}
                         }
+                    }
+                }
+            }
         }
         for row in &mut messages {
             row.index = self.message_id_counter;
             self.message_id_counter += 1;
             self.messages.push(row.clone());
         }
-        
     }
 
     fn add_regex_item(&mut self, item: DltDataRegexItem) {

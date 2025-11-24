@@ -1,7 +1,14 @@
-use iced::Point;
 use crate::components::tcp_handler::EcuUpdateInfo;
 use crate::plugin::PluginMessage;
-use crate::{components::view::{gantt_chart_setting::ModuleGanttChartWidgetSettingsMessage, module_view_settings::{ChartType, ModuleChartWidgetSettingsMessage}}, module_view::{ModuleWidget, canvas::ContextMenuAction}, pages::table::DltMessageRow};
+use crate::{
+    components::view::{
+        gantt_chart_setting::ModuleGanttChartWidgetSettingsMessage,
+        module_view_settings::{ChartType, ModuleChartWidgetSettingsMessage},
+    },
+    module_view::{ModuleWidget, canvas::ContextMenuAction},
+    pages::table::DltMessageRow,
+};
+use iced::Point;
 
 #[derive(Debug, Clone)]
 pub enum ConnectionEvent {
@@ -11,7 +18,6 @@ pub enum ConnectionEvent {
     Error(String),
     DltMessageReceived(Vec<DltMessageRow>),
 }
-
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -43,7 +49,6 @@ pub enum Message {
     ContextMenuAction(ContextMenuAction),
     RightMouseReleased(Point),
 
-
     // Modal related messages\
     UpdateModuleChartWidgetSettingsMessage(ModuleChartWidgetSettingsMessage),
     UpdateGanttChartWidgetSettingsMessage(ModuleGanttChartWidgetSettingsMessage),
@@ -69,13 +74,26 @@ pub enum Message {
     PluginMessage(String, PluginMessage),
 
     EcuListUpdate(Vec<EcuUpdateInfo>),
-    BatchUpdate {dlt_messages: Vec<DltMessageRow>, ecu_updates: Vec<EcuUpdateInfo>},
+    BatchUpdate {
+        dlt_messages: Vec<DltMessageRow>,
+        ecu_updates: Vec<EcuUpdateInfo>,
+    },
+
+    SelectContext(String, String, String),
+    SelectApp(String, String),
+    SelectEcu(String),
+    InjectMessage(String, String, String, String),
+    UpdateMessageType(String),
+    UpdateInjectionMessage(String),
+    ClearInjectionMessage,
+    ECUViewEditContext(i8, i8),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Page {
     Overview,
     Reports,
+    ECUSetting,
     Settings,
     Table,
     ChartCanvas,
