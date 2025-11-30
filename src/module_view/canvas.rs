@@ -159,6 +159,11 @@ impl ContextMenu {
         } else {
             angle
         };
+
+        let distance = (dx * dx + dy * dy).sqrt();
+        if distance < 20.0 {
+            return None; // Outside menu radius
+        }
         
         for item in &self.items {
             if normalized_angle >= item.angle_start && normalized_angle < item.angle_end {
@@ -321,6 +326,44 @@ impl canvas::Program<Message> for ModuleCanvas {
             _ => {}
          }
         (canvas::event::Status::Ignored, None)
+    }
+
+    fn mouse_interaction(
+        &self,
+        _state: &Self::State,
+        bounds: Rectangle,
+        cursor: mouse::Cursor,
+    ) -> mouse::Interaction {
+        let cursor_position = cursor.position_in(bounds);
+        
+        if let Some(position) = cursor_position {
+            let renderer = ChartRenderer::new(self.dark_mode);
+            
+            // Check if hovering over a resize handle
+            for chart in self.module_widget.values() {
+                if renderer.is_on_resize_handle(chart, position) {
+                    // Show resize cursor based on handle position
+                    return mouse::Interaction::ResizingDiagonallyDown
+                    // or mouse::Interaction::ResizingVertically
+                    // or for diagonal: you might want to detect which corner
+                }
+            }
+            
+            // Check if hovering over a chart (for dragging)
+            for chart in self.module_widget.values() {
+                if is_point_in_chart(position, chart) {
+                    return mouse::Interaction::Grab;
+                }
+            }
+            
+            // Check if hovering over context menu
+            if let Some(menu) = &self.context_menu {
+                // Check if position is over menu
+                // return mouse::Interaction::Pointer;
+            }
+        }
+        
+        mouse::Interaction::default()
     }
 }
 

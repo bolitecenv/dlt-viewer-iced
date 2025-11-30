@@ -26,6 +26,7 @@ use crate::types::{FrontDltAppIdItem, FrontDltEcuItem};
 
 use crate::message::ConnectionEvent;
 use iced::futures::{self};
+use iced::window::drag;
 use iced::{
     Color, Font, Point, Size,
     font::{Family, Stretch, Style, Weight},
@@ -430,6 +431,15 @@ impl Dashboard {
                 // Snap to grid when releasing
                 const GRID_SIZE: f32 = 50.0;
 
+                if let Some(resize_state) = &self.resizing {
+                    if let Some(chart) = self.module_widgets.get_mut(&resize_state.chart_id) {
+                        chart.size = Size::new(
+                            (chart.size.width / GRID_SIZE).round() * GRID_SIZE,
+                            (chart.size.height / GRID_SIZE).round() * GRID_SIZE,
+                        );
+                    }
+                }
+
                 if let Some(drag_state) = &self.dragging {
                     if let Some(chart) = self.module_widgets.get_mut(&drag_state.chart_id) {
                         chart.position = iced::Point::new(
@@ -471,10 +481,17 @@ impl Dashboard {
                 } else if let Some(drag_state) = &self.dragging {
                     // Handle dragging
                     if let Some(chart) = self.module_widgets.get_mut(&drag_state.chart_id) {
-                        chart.position = iced::Point::new(
-                            cursor_position.x - drag_state.offset.x,
-                            cursor_position.y - drag_state.offset.y,
-                        );
+                        let mut new_widget_x = cursor_position.x - drag_state.offset.x;
+                        let mut new_widget_y = cursor_position.y - drag_state.offset.y;
+                        if new_widget_x < 0.0 && new_widget_y < 0.0 {
+                            new_widget_x = 0.0;
+                            new_widget_y = 0.0;
+                        } else if new_widget_x < 0.0 {
+                            new_widget_x = 0.0;
+                        } else if new_widget_y < 0.0 {
+                            new_widget_y = 0.0;
+                        }
+                        chart.position = iced::Point::new(new_widget_x, new_widget_y);
                     }
                 }
             }
