@@ -187,12 +187,12 @@ impl canvas::Program<Message> for ModuleCanvas {
         let bg_color = if self.dark_mode {
             Color::from_rgb(0.1, 0.1, 0.12)
         } else {
-            Color::from_rgb(0.95, 0.95, 0.95)
+            Color::from_rgb(0.99, 0.99, 0.99)
         };
         frame.fill_rectangle(Point::ORIGIN, bounds.size(), bg_color);
 
         // Draw grid
-        self.draw_grid(&mut frame, bounds);
+        //self.draw_grid(&mut frame, bounds);
 
         // Draw each chart using the renderer
         let cursor_position = cursor.position_in(bounds);
