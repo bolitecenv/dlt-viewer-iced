@@ -15,7 +15,7 @@ use crate::module_view;
 use crate::module_view::canvas::{ContextMenu, ContextMenuAction, handle_mouse_wheel}; // NEW: Add context menu imports
 use crate::module_view::module_widget::{
     ChartData, ChartSettings, ChartWidget, GanttChartData, GanttChartDataPoint, GanttChartSettings,
-    GanttChartWidget, ModuleWidgetCommonSettings, WidgetTpye,
+    GanttChartWidget, ModuleWidgetCommonSettings, ModuleWidgetWindowView, WidgetTpye,
 };
 use crate::module_view::{DragState, ModuleWidget};
 use crate::pages::ecu_setting::{EcuListView, EcuSelection};
@@ -57,7 +57,7 @@ pub struct ResizeState {
     pub initial_cursor: Point,
 }
 
-pub struct Dashboard {
+pub struct Dashboard<T: ModuleWidgetWindowView> {
     pub current_page: Page,
     pub dark_mode: bool,
     pub tcp_ip: String,
@@ -67,7 +67,7 @@ pub struct Dashboard {
     pub messages: Vec<DltMessageRow>,
     pub message_id_counter: u32,
     pub max_messages: usize,
-    pub module_widgets: HashMap<usize, ModuleWidget>,
+    pub module_widgets: HashMap<usize, ModuleWidget<T>>,
     pub next_id: usize,
     pub dragging: Option<DragState>,
     pub resizing: Option<ResizeState>,
@@ -609,7 +609,6 @@ impl Dashboard {
                 // 2. Apply ECU updates
                 apply_ecu_updates(&mut self.ecu_list, ecu_updates);
                 self.ecu_list_view.set_ecu_list(self.ecu_list.clone());
-
             }
             Message::SelectEcu(ecu_id) => {
                 self.ecu_list_view.toggle_ecu(ecu_id.clone());

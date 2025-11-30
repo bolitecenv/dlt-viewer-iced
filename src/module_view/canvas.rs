@@ -1,6 +1,6 @@
 use crate::message::Message;
 use crate::module_view::ModuleWidget;
-use crate::module_view::chart_renderer::ChartRenderer;
+use crate::module_view::chart_widget::ChartRenderer;
 use crate::module_view::ganttchart_renderer::GanttChartRenderer;
 use crate::module_view::module_widget::*;
 use iced::widget::canvas::{self, Canvas};
@@ -11,6 +11,16 @@ pub struct ModuleCanvas {
     pub module_widget: HashMap<usize, ModuleWidget>,
     pub dark_mode: bool,
     pub context_menu: Option<ContextMenu>,
+}
+
+pub enum ModuleCanvasEvent {
+    AddChart,
+    AddGanttChart,
+    Delete,
+    Duplicate,
+    Settings,
+    Move,
+    Resize,
 }
 
 pub struct DragState {

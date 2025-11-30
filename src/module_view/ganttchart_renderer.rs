@@ -4,6 +4,19 @@ use crate::module_view::module_widget::{
 use iced::widget::canvas;
 use iced::{Color, Point, Rectangle, Size};
 
+#[derive(Debug, Clone)]
+pub struct GanttChartSettings {
+    pub time_scale: f32,
+    pub show_dependencies: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct GanttChartDataPoint {
+    pub y_label: String,
+    pub start_time: f32,
+    pub end_time: f32,
+}
+
 pub struct GanttChartRenderer {
     pub dark_mode: bool,
 }
