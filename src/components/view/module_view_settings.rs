@@ -273,19 +273,7 @@ impl ModalWindow_ModuleChartWidgetSettingsView {
             
             Space::new(Length::Shrink, Length::Fixed(10.0)),
 
-            // Show Legend Checkbox
-            checkbox("Show Legend", self.widget.as_ref().unwrap().widget_type.get_chart_settings().unwrap().show_legend)
-                .on_toggle(|_| Message::ToggleLegend)
-                .size(14)
-                .text_size(14),
 
-            Space::new(Length::Shrink, Length::Fixed(10.0)),
-
-            // Show Grid Checkbox
-            checkbox("Show Grid", self.widget.as_ref().unwrap().widget_type.get_chart_settings().unwrap().show_grid)
-            .on_toggle(|_| Message::ToggleGrid)
-            .size(14)
-            .text_size(14),
 
             Space::new(Length::Shrink, Length::Fixed(15.0)),
         ]
@@ -310,7 +298,8 @@ impl ModalContent<Message> for ModalWindow_ModuleChartWidgetSettingsView {
     }
 
     fn close_message(&self) -> Message {
-        Message::CloseChartSettings(self.widget.clone().unwrap())
+        //Message::CloseChartSettings(self.widget.clone().unwrap())
+        Message::RefreshChartData
     }
 
     fn refresh_message(&self) -> Option<Message> {

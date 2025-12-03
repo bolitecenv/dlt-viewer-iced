@@ -7,19 +7,41 @@ pub const RESIZE_HANDLE_SIZE: f32 = 10.0;
 pub const MIN_CHART_WIDTH: f32 = 200.0;
 pub const MIN_CHART_HEIGHT: f32 = 200.0;
 
-#[derive(Debug, Clone)]
-pub struct ModuleWidget<T: ModuleWidgetWindowView> {
+pub const RESIZE_HANDLE_MARGIN: f32 = 5.0;
+pub const HORIZONTAL_RESIZE_MARGIN: f32 = 5.0;
+pub const VERTICAL_RESIZE_MARGIN: f32 = 5.0;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ResizeType {
+    Left,
+    Right,
+    Top,
+    Bottom,
+    Corner,
+}
+
+pub struct ModuleWidget {
     pub id: usize,
-    pub module_widget: T,
+    pub module_widget: Box<dyn ModuleWidgetWindowView>,
     pub dlt_data_regex_item: Option<DltDataRegexItem>,
 }
 
-impl<T: ModuleWidgetWindowView> ModuleWidget<T> {
-    pub fn new(id: usize, module_widget: T, dlt_data_regex_item: Option<DltDataRegexItem>) -> Self {
+impl ModuleWidget {
+    pub fn new(id: usize, module_widget: Box<dyn ModuleWidgetWindowView>, dlt_data_regex_item: Option<DltDataRegexItem>) -> Self {
         Self {
             id,
             module_widget,
             dlt_data_regex_item,
+        }
+    }
+}
+
+impl Clone for ModuleWidget {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id,
+            module_widget: self.module_widget.clone_box(),
+            dlt_data_regex_item: self.dlt_data_regex_item.clone(),
         }
     }
 }
@@ -37,7 +59,7 @@ impl ModuleWidgetWindow {
     pub fn default() -> Self {
         Self {
             position: Point::new(0.0, 0.0),
-            size: Size::new(100.0, 100.0),
+            size: Size::new(200.0, 200.0),
             border_color: Color::from_rgb(0.0, 0.0, 0.0),
             border_width: 1.0,
             bg_color: Color::from_rgb(1.0, 1.0, 1.0),
@@ -49,9 +71,73 @@ pub struct ModuleScreen<T: ModuleWidgetWindowView> {
 }
 
 // New trait for module widget window view and move, resize
-pub trait ModuleWidgetWindowView {
+pub trait ModuleWidgetWindowView: Send + Sync {
     fn get_window(&self) -> &ModuleWidgetWindow;
     fn get_window_mut(&mut self) -> &mut ModuleWidgetWindow;
+    fn get_window_contains_point(&self, point: Point) -> bool {
+        let window = self.get_window();
+        point.x >= window.position.x + HORIZONTAL_RESIZE_MARGIN
+            && point.x <= window.position.x + window.size.width - HORIZONTAL_RESIZE_MARGIN
+            && point.y >= window.position.y + VERTICAL_RESIZE_MARGIN
+            && point.y <= window.position.y + window.size.height - VERTICAL_RESIZE_MARGIN
+    }
+    fn get_window_some_resize_contains_point(&self, point: Point) -> bool {
+        self.get_window_left_resize_contains_point(point)
+            || self.get_window_right_resize_contains_point(point)
+            || self.get_window_top_resize_contains_point(point)
+            || self.get_window_bottom_resize_contains_point(point)
+            || self.get_window_resize_handle_contains_point(point)
+    }
+    fn get_window_resize_type_contains_point(&self, point: Point) -> Option<ResizeType> {
+        if self.get_window_left_resize_contains_point(point) {
+            Some(ResizeType::Left)
+        } else if self.get_window_right_resize_contains_point(point) {
+            Some(ResizeType::Right)
+        } else if self.get_window_top_resize_contains_point(point) {
+            Some(ResizeType::Top)
+        } else if self.get_window_bottom_resize_contains_point(point) {
+            Some(ResizeType::Bottom)
+        } else if self.get_window_resize_handle_contains_point(point) {
+            Some(ResizeType::Corner)
+        } else {
+            None
+        }
+    }
+    fn get_window_resize_handle_contains_point(&self, point: Point) -> bool {
+        let window = self.get_window();
+        point.x >= window.position.x + window.size.width - RESIZE_HANDLE_SIZE
+            && point.x <= window.position.x + window.size.width + RESIZE_HANDLE_SIZE
+            && point.y >= window.position.y + window.size.height - RESIZE_HANDLE_SIZE
+            && point.y <= window.position.y + window.size.height + RESIZE_HANDLE_SIZE
+    }
+    fn get_window_right_resize_contains_point(&self, point: Point) -> bool {
+        let window = self.get_window();
+        point.x >= window.position.x + window.size.width - HORIZONTAL_RESIZE_MARGIN
+            && point.x <= window.position.x + window.size.width + HORIZONTAL_RESIZE_MARGIN
+            && point.y >= window.position.y
+            && point.y <= window.position.y + window.size.height - VERTICAL_RESIZE_MARGIN
+    }
+    fn get_window_left_resize_contains_point(&self, point: Point) -> bool {
+        let window = self.get_window();
+        point.x >= window.position.x - HORIZONTAL_RESIZE_MARGIN
+            && point.x <= window.position.x + HORIZONTAL_RESIZE_MARGIN
+            && point.y >= window.position.y
+            && point.y <= window.position.y + window.size.height
+    }
+    fn get_window_top_resize_contains_point(&self, point: Point) -> bool {
+        let window = self.get_window();
+        point.x >= window.position.x
+            && point.x <= window.position.x + window.size.width
+            && point.y >= window.position.y - VERTICAL_RESIZE_MARGIN
+            && point.y <= window.position.y + VERTICAL_RESIZE_MARGIN
+    }
+    fn get_window_bottom_resize_contains_point(&self, point: Point) -> bool {
+        let window = self.get_window();
+        point.x >= window.position.x
+            && point.x <= window.position.x + window.size.width - HORIZONTAL_RESIZE_MARGIN
+            && point.y >= window.position.y + window.size.height - VERTICAL_RESIZE_MARGIN
+            && point.y <= window.position.y + window.size.height + VERTICAL_RESIZE_MARGIN
+    }
     fn draw(&self, frame: &mut canvas::Frame);
     fn window_draw(&self, frame: &mut canvas::Frame) {
         // Draw window border and bg
@@ -69,6 +155,8 @@ pub trait ModuleWidgetWindowView {
         let window = self.get_window_mut();
         window.size = new_size;
     }
+
+    fn clone_box(&self) -> Box<dyn ModuleWidgetWindowView>;
 }
 
 impl<T> ModuleScreen<T>
@@ -145,5 +233,25 @@ impl ModuleWidgetWindowView for CardWidget {
             size: 12.into(),
             ..canvas::Text::default()
         });
+    }
+
+    fn clone_box(&self) -> Box<dyn ModuleWidgetWindowView> {
+        Box::new(self.clone())
+    }
+}
+
+impl Clone for CardWidget {
+    fn clone(&self) -> Self {
+        Self {
+            window: ModuleWidgetWindow {
+                position: self.window.position,
+                size: self.window.size,
+                border_color: self.window.border_color,
+                border_width: self.window.border_width,
+                bg_color: self.window.bg_color,
+            },
+            title: self.title.clone(),
+            content: self.content.clone(),
+        }
     }
 }

@@ -1,10 +1,8 @@
 use crate::components::tcp_handler::EcuUpdateInfo;
+use crate::module_view::ModuleCanvas;
+use crate::module_view::canvas::{ModuleCanvasMessage};
 use crate::plugin::PluginMessage;
 use crate::{
-    components::view::{
-        gantt_chart_setting::ModuleGanttChartWidgetSettingsMessage,
-        module_view_settings::{ChartType, ModuleChartWidgetSettingsMessage},
-    },
     module_view::{ModuleWidget, canvas::ContextMenuAction},
     pages::table::DltMessageRow,
 };
@@ -49,17 +47,12 @@ pub enum Message {
     ContextMenuAction(ContextMenuAction),
     RightMouseReleased(Point),
 
-    // Modal related messages\
-    UpdateModuleChartWidgetSettingsMessage(ModuleChartWidgetSettingsMessage),
-    UpdateGanttChartWidgetSettingsMessage(ModuleGanttChartWidgetSettingsMessage),
-    UpdateChartType(ChartType),
     UpdateChartTitle(String),
     UpdateXAxisLabel(String),
     UpdateYAxisLabel(String),
     ToggleChartLegend(bool),
     ToggleChartGrid(bool),
     UpdateLineWidth(String),
-    CloseChartSettings(ModuleWidget),
     RefreshChartData,
     ApplyChartSettings,
 
@@ -87,11 +80,13 @@ pub enum Message {
     UpdateInjectionMessage(String),
     ClearInjectionMessage,
     ECUViewEditContext(i8, i8),
+
+    // Module Canvas Events
+    ModuleCanvasMessage(ModuleCanvasMessage),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Page {
-    Overview,
     Reports,
     ECUSetting,
     Settings,

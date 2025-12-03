@@ -27,7 +27,6 @@ pub fn view(
 
     // Use owned Strings for labels so they don't borrow from a temporary collection.
     let base_nav_items: Vec<(&'static str, String, Page)> = vec![
-        (ICON_OVERVIEW, String::from("Overview"), Page::Overview),
         (ICON_REPORTS, String::from("ECUSetting"), Page::ECUSetting),
         (ICON_SETTINGS, String::from("Settings"), Page::Settings),
         ("\u{f0ce}", String::from("Table"), Page::Table),

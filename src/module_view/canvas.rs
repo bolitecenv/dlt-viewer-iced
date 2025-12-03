@@ -1,37 +1,49 @@
 use crate::message::Message;
+use crate::module_view::ChartWidget;
 use crate::module_view::ModuleWidget;
-use crate::module_view::chart_widget::ChartRenderer;
-use crate::module_view::ganttchart_renderer::GanttChartRenderer;
+use crate::module_view::chart_widget::ChartSettings;
 use crate::module_view::module_widget::*;
 use iced::widget::canvas::{self, Canvas};
-use iced::{Color, Element, Length, Point, Rectangle, Renderer, Size, Theme, keyboard, mouse};
+use iced::{Color, Element, Length, Point, Rectangle, Renderer, Size, Task, Theme, keyboard, mouse};
 use std::collections::HashMap;
 
+pub const GRID_SIZE: f32 = 50.0;
+pub const SNAP_THRESHOLD: f32 = 10.0;
+
+#[derive(Clone)]
 pub struct ModuleCanvas {
     pub module_widget: HashMap<usize, ModuleWidget>,
     pub dark_mode: bool,
     pub context_menu: Option<ContextMenu>,
+    pub selected_module: Option<usize>,  // Track which module is selected
+    pub hovered_module: Option<usize>,   // Track which module is hovered
+    pub resize_module: Option<(usize, ResizeType)>, // Track which module is being resized
+    pub state: CanvasState,
 }
 
-pub enum ModuleCanvasEvent {
+#[derive(Debug, Clone)]
+pub enum ModuleCanvasMessage {
     AddChart,
     AddGanttChart,
     Delete,
     Duplicate,
     Settings,
-    Move,
+    Move(Point),
     Resize,
-}
-
-pub struct DragState {
-    pub chart_id: usize,
-    pub offset: Point,
+    ShowContextMenu(Point),
+    CloseContextMenu,
+    SelectModule(Option<usize>),
+    RightMouseReleased(Point),
+    RightMousePressed(Point),
+    LeftMouseReleased(Point),
+    LeftMousePressed(Point),
 }
 
 #[derive(Debug, Clone)]
 pub struct ContextMenu {
     pub position: Point,
     pub items: Vec<ContextMenuItem>,
+    pub target_module: Option<usize>,  // Which module this menu is for
 }
 
 #[derive(Debug, Clone)]
@@ -51,65 +63,314 @@ pub enum ContextMenuAction {
     Settings,
 }
 
-#[derive(Default)]
-pub struct InteractionState {
-    pub dragging_chart_index: Option<usize>,
-    pub drag_start: Option<Point>,
+#[derive(Clone)]
+pub struct ButtonState {
+    pub is_pressed: bool,
+    pub press_position: Option<Point>,  // Where the button was pressed
 }
 
-// Handle mouse wheel events
-pub fn handle_mouse_wheel(module_widget: &mut ModuleWidget, delta: f32, shift_pressed: bool) {
-    const ZOOM_FACTOR: f32 = 1.2;
-    const MIN_ZOOM: f32 = 0.1;
-    const MAX_ZOOM: f32 = 10.0;
+impl Default for ButtonState {
+    fn default() -> Self {
+        Self { 
+            is_pressed: false,
+            press_position: None,
+        }
+    }
+}
 
-    if delta.abs() < f32::EPSILON {
-        return; // Ignore very small deltas
+#[derive(Clone)]
+pub struct CanvasState {
+    pub left_mouse_button: ButtonState,
+    pub right_mouse_button: ButtonState,
+}
+
+impl Default for CanvasState {
+    fn default() -> Self {
+        Self {
+            left_mouse_button: ButtonState::default(),
+            right_mouse_button: ButtonState::default(),
+        }
+    }
+}
+
+impl ModuleCanvas {
+    pub fn new() -> Self {
+        Self {
+            module_widget: HashMap::new(),
+            dark_mode: false,
+            context_menu: None,
+            selected_module: None,
+            hovered_module: None,
+            resize_module: None,
+            state: CanvasState::default(),
+        }
     }
 
-    if shift_pressed {
-        // Shift + wheel: zoom Y-axis
-        let new_zoom = if delta > 0.0 {
-            module_widget.settings.y_zoom * ZOOM_FACTOR
+    pub fn update(&mut self, message: ModuleCanvasMessage) -> Task<Message> {
+        match message {
+            ModuleCanvasMessage::AddChart => {
+                println!("Add Chart action triggered");
+                
+                // Create new chart at context menu position
+                if let Some(menu) = &self.context_menu {
+                    let chart_widget = ChartWidget::new(self.dark_mode, ChartSettings {
+                        show_grid: true,
+                        show_legend: true,
+                        line_smoothness: 0.5,
+                        x_label: "X-Axis".to_string(),
+                        y_label: "Y-Axis".to_string(),
+                    });
+                    
+                    let new_id = self.module_widget.keys().max().unwrap_or(&0) + 1;
+                    let module_widget = ModuleWidget {
+                        id: new_id,
+                        module_widget: Box::new(chart_widget),
+                        dlt_data_regex_item: None,
+                    };
+                    self.module_widget.insert(new_id, module_widget);
+                }
+
+                self.context_menu = None;
+            }
+            ModuleCanvasMessage::AddGanttChart => {
+                println!("Add Gantt Chart action triggered");
+                self.context_menu = None;
+            }
+            ModuleCanvasMessage::Delete => {
+                println!("Delete action triggered");
+                if let Some(menu) = &self.context_menu {
+                    if let Some(module_id) = menu.target_module {
+                        self.module_widget.remove(&module_id);
+                    }
+                }
+                self.context_menu = None;
+            }
+            ModuleCanvasMessage::Duplicate => {
+                println!("Duplicate action triggered");
+                self.context_menu = None;
+            }
+            ModuleCanvasMessage::Settings => {
+                println!("Settings action triggered");
+                if let Some(menu) = &self.context_menu {
+                    if let Some(module_id) = menu.target_module {
+                        println!("Opening settings for module: {}", module_id);
+                        // TODO: Open settings panel for this module
+                    }
+                }
+                self.context_menu = None;
+            }
+            ModuleCanvasMessage::Move(position) => {
+                // Update hovered module
+                self.hovered_module = self.get_module_at_position(position);
+                
+                if self.state.left_mouse_button.is_pressed {
+                    // Handle moving the selected module
+                    if let Some(selected_id) = self.selected_module {
+                        if let Some(module) = self.module_widget.get_mut(&selected_id) {
+                            let window = module.module_widget.get_window_mut();
+                            window.position = Point {
+                                x: position.x - window.size.width / 2.0,
+                                y: position.y - window.size.height / 2.0,
+                            };
+                        }
+                    }
+
+                    // Handle resizing
+                    if let Some((resize_id, resize_type)) = self.resize_module {
+                        if let Some(module) = self.module_widget.get_mut(&resize_id) {
+                            let window = module.module_widget.get_window_mut();
+                            match resize_type {
+                                ResizeType::Right => {
+                                    window.size.width = (position.x - window.position.x).max(MIN_CHART_WIDTH);
+                                }
+                                ResizeType::Bottom => {
+                                    window.size.height = (position.y - window.position.y).max(MIN_CHART_HEIGHT);
+                                }
+                                ResizeType::Corner => {
+                                    window.size.width = (position.x - window.position.x).max(MIN_CHART_WIDTH);
+                                    window.size.height = (position.y - window.position.y).max(MIN_CHART_HEIGHT);
+                                }
+                                _ => {}
+                            }
+                            // Snap the window position and size to the grid
+                            window.size = Self::sticky_snap_to_grid_size(window.size);
+                        }
+                    }
+                }
+
+                if self.context_menu.is_none() {
+                        if self.state.right_mouse_button.is_pressed {
+                        // Potentially handle right-drag actions
+                        
+                        // if the right drag is more than a threashold, open context menu
+                        let press_pos = self.state.right_mouse_button.press_position;
+                        let drag_distance = press_pos.map_or(0.0, |press_pos| {
+                            ((position.x - press_pos.x).powi(2) + (position.y - press_pos.y).powi(2)).sqrt()
+                        });
+                        if drag_distance > 10.0 {
+                            let target_module = self.get_module_at_position(position);
+                            self.context_menu = Some(ContextMenu::new(position, target_module));
+                        }
+                    }
+                }
+                
+            }
+            ModuleCanvasMessage::Resize => {
+                println!("Resize action triggered");
+            }
+            ModuleCanvasMessage::ShowContextMenu(position) => {
+                println!("Show context menu at position: {:?}", position);
+                
+                // Determine which module was right-clicked
+                let target_module = self.get_module_at_position(position);
+                
+                self.context_menu = Some(ContextMenu::new(position, target_module));
+            }
+            ModuleCanvasMessage::CloseContextMenu => {
+                self.context_menu = None;
+            }
+            ModuleCanvasMessage::SelectModule(module_id) => {
+                self.selected_module = module_id;
+                println!("Selected module: {:?}", module_id);
+            }
+
+            // Handle mouse button messages
+            ModuleCanvasMessage::RightMouseReleased(_position) => {
+                // Handle right mouse button release if needed
+                self.state.right_mouse_button.is_pressed = false;
+
+                if let Some(menu) = &self.context_menu {
+                    if let Some(action) = menu.get_action_at(_position, 90.0) {
+                        let message = match action {
+                            ContextMenuAction::AddChart => ModuleCanvasMessage::AddChart,
+                            ContextMenuAction::AddGanttChart => ModuleCanvasMessage::AddGanttChart,
+                            ContextMenuAction::Delete => ModuleCanvasMessage::Delete,
+                            ContextMenuAction::Duplicate => ModuleCanvasMessage::Duplicate,
+                            ContextMenuAction::Settings => ModuleCanvasMessage::Settings,
+                        };
+                        return Task::perform(async {}, move |_| Message::ModuleCanvasMessage(message.clone()));
+                    }
+
+                    self.context_menu = None;
+                }
+            }
+            ModuleCanvasMessage::RightMousePressed(_position) => {
+                // Handle right mouse button press if needed
+                self.state.right_mouse_button.is_pressed = true;
+                self.state.right_mouse_button.press_position = Some(_position);
+            }
+            ModuleCanvasMessage::LeftMouseReleased(_position) => {
+                // Handle left mouse button release if needed
+                self.state.left_mouse_button.is_pressed = false;
+            }
+            ModuleCanvasMessage::LeftMousePressed(_position) => {
+                self.state.left_mouse_button.is_pressed = true;
+                self.state.left_mouse_button.press_position = Some(_position);
+
+                self.selected_module = None;
+                self.resize_module = None;
+
+                self.selected_module = self.get_module_at_position(_position);
+                if self.selected_module.is_none() {
+                    self.resize_module = self.get_module_resize_at_position(_position);
+                }
+
+                // Debug resize or select
+                if let Some(selected_id) = self.selected_module {
+                    println!("Selected module for moving: {}", selected_id);
+                }
+                if let Some((resize_id, resize_type)) = self.resize_module {
+                    println!("Selected module for resizing: {} with type {:?}", resize_id, resize_type);
+                }
+            }
+        }
+        Task::none()
+    }
+
+    pub fn view(&self, dark_mode: bool) -> Element<'_, Message> {
+        Canvas::new(self)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into()
+    }
+
+    fn get_module_at_position(&self, position: Point) -> Option<usize> {
+        // Check which module contains this position
+        for (id, module) in &self.module_widget {
+            if module.module_widget.get_window_contains_point(position) {
+                return Some(*id);
+            }
+        }
+        None
+    }
+
+    fn get_module_resize_at_position(&self, position: Point) -> Option<(usize, ResizeType)> {
+        // Check which module resize handle contains this position
+        for (id, module) in &self.module_widget {
+            if let Some(resize_type) = module.module_widget.get_window_resize_type_contains_point(position) {
+                return Some((*id, resize_type));
+            }
+        }
+        None
+    }
+
+    fn sticky_snap_to_grid(value: f32, grid_size: f32, threshold: f32) -> f32 {
+        let remainder = value % grid_size;
+        if remainder < threshold {
+            value - remainder
+        } else if remainder > grid_size - threshold {
+            value + (grid_size - remainder)
         } else {
-            module_widget.settings.y_zoom / ZOOM_FACTOR
-        };
-        module_widget.settings.y_zoom = new_zoom.clamp(MIN_ZOOM, MAX_ZOOM);
-    } else {
-        // Wheel only: zoom X-axis
-        let new_zoom = if delta > 0.0 {
-            module_widget.settings.x_zoom * ZOOM_FACTOR
+            value
+        }
+    }
+
+    fn sticky_snap_to_grid_size(size: Size) -> Size {
+        let snapped_width = Self::sticky_snap_to_grid(size.width, GRID_SIZE, SNAP_THRESHOLD);
+        let snapped_height = Self::sticky_snap_to_grid(size.height, GRID_SIZE, SNAP_THRESHOLD);
+        Size::new(snapped_width, snapped_height)
+    }
+
+    fn draw_grid(&self, frame: &mut canvas::Frame, bounds: Rectangle) {
+        let grid_size = GRID_SIZE;
+        let grid_color = if self.dark_mode {
+            Color::from_rgba(1.0, 1.0, 1.0, 0.05)
         } else {
-            module_widget.settings.x_zoom / ZOOM_FACTOR
+            Color::from_rgba(0.0, 0.0, 0.0, 0.1)
         };
-        module_widget.settings.x_zoom = new_zoom.clamp(MIN_ZOOM, MAX_ZOOM);
-    }
-}
 
-// Handle mouse drag for panning
-pub fn handle_mouse_drag(
-    module_widgets: &mut ModuleWidget,
-    delta: Point,
-    shift_pressed: bool,
-    chart_area: &Rectangle,
-) {
-    if shift_pressed {
-        // Shift + drag: pan X-axis
-        let pan_sensitivity = 1.0 / (chart_area.width * module_widgets.settings.x_zoom);
-        module_widgets.settings.x_offset -= delta.x * pan_sensitivity;
-        module_widgets.settings.x_offset = module_widgets.settings.x_offset.clamp(-0.5, 0.5);
-    }
-}
+        let grid_rows = (bounds.height / grid_size).ceil() as usize;
+        let grid_cols = (bounds.width / grid_size).ceil() as usize;
 
-pub fn is_point_in_chart(point: Point, chart: &ModuleWidget) -> bool {
-    point.x >= chart.position.x
-        && point.x <= chart.position.x + chart.size.width
-        && point.y >= chart.position.y
-        && point.y <= chart.position.y + chart.size.height
+        for i in 0..=grid_rows {
+            let y = i as f32 * grid_size;
+            frame.stroke(
+                &canvas::Path::line(Point::new(0.0, y), Point::new(bounds.width, y)),
+                canvas::Stroke::default()
+                    .with_color(grid_color)
+                    .with_width(1.0),
+            );
+        }
+        for i in 0..=grid_cols {
+            let x = i as f32 * grid_size;
+            frame.stroke(
+                &canvas::Path::line(Point::new(x, 0.0), Point::new(x, bounds.height)),
+                canvas::Stroke::default()
+                    .with_color(grid_color)
+                    .with_width(1.0),
+            );
+        }
+    }
+
+    fn draw_modules(&self, frame: &mut canvas::Frame) {
+        for module in self.module_widget.values() {
+            module.module_widget.window_draw(frame);
+        }
+    }
 }
 
 impl ContextMenu {
-    pub fn new(position: Point) -> Self {
+    pub fn new(position: Point, target_module: Option<usize>) -> Self {
         let mut items = vec![
             ContextMenuItem {
                 label: "Add Chart".to_string(),
@@ -152,7 +413,7 @@ impl ContextMenu {
             item.angle_end = (i + 1) as f32 * angle_per_item;
         }
 
-        Self { position, items }
+        Self { position, items, target_module }
     }
 
     pub fn get_action_at(&self, point: Point, radius: f32) -> Option<ContextMenuAction> {
@@ -168,7 +429,7 @@ impl ContextMenu {
 
         let distance = (dx * dx + dy * dy).sqrt();
         if distance < 20.0 {
-            return None; // Outside menu radius
+            return None;
         }
 
         for item in &self.items {
@@ -182,7 +443,7 @@ impl ContextMenu {
 }
 
 impl canvas::Program<Message> for ModuleCanvas {
-    type State = ();
+    type State = CanvasState;
 
     fn draw(
         &self,
@@ -203,35 +464,12 @@ impl canvas::Program<Message> for ModuleCanvas {
         frame.fill_rectangle(Point::ORIGIN, bounds.size(), bg_color);
 
         // Draw grid
-        //self.draw_grid(&mut frame, bounds);
+        // self.draw_grid(&mut frame, bounds);
 
-        let card_widget = CardWidget {
-            window: ModuleWidgetWindow::default(),
-            title: "Card".to_string(),
-            content: "Content".to_string(),
-        };
-
-        let mut module_screen = ModuleScreen::new();
-        module_screen.add_widget(card_widget);
-
-        module_screen.draw(&mut frame);
+        self.draw_modules(&mut frame);
 
         // Draw each chart using the renderer
         let cursor_position = cursor.position_in(bounds);
-        let chart_renderer = ChartRenderer::new(self.dark_mode);
-        let gantt_chart_renderer = GanttChartRenderer::new(self.dark_mode);
-
-        for widget in self.module_widget.values() {
-            match &widget.widget_type {
-                WidgetTpye::LineChart(chart_widget) | WidgetTpye::BarChart(chart_widget) => {
-                    chart_renderer.draw_chart(&mut frame, &widget, cursor_position);
-                }
-                WidgetTpye::GanttChart(gantt_chart_widget) => {
-                    gantt_chart_renderer.draw_chart(&mut frame, &widget, cursor_position);
-                }
-                _ => {}
-            }
-        }
 
         // Draw context menu if present
         if let Some(menu) = &self.context_menu {
@@ -243,7 +481,7 @@ impl canvas::Program<Message> for ModuleCanvas {
 
     fn update(
         &self,
-        _state: &mut Self::State,
+        state: &mut Self::State,
         event: canvas::Event,
         bounds: Rectangle,
         cursor: mouse::Cursor,
@@ -253,74 +491,47 @@ impl canvas::Program<Message> for ModuleCanvas {
         match event {
             canvas::Event::Mouse(mouse_event) => match mouse_event {
                 mouse::Event::ButtonPressed(mouse::Button::Left) => {
-                    if let Some(position) = cursor_position {
-                        let renderer = ChartRenderer::new(self.dark_mode);
-
-                        // Check if clicking on a resize handle
-                        for chart in self.module_widget.values() {
-                            if renderer.is_on_resize_handle(chart, position) {
-                                return (
-                                    canvas::event::Status::Captured,
-                                    Some(Message::StartResize(chart.id, position)),
-                                );
-                            }
-                        }
-
-                        return (
-                            canvas::event::Status::Captured,
-                            Some(Message::MousePressed(position)),
-                        );
-                    }
+                    state.left_mouse_button.is_pressed = true;
+                    return (canvas::event::Status::Captured, 
+                        Some(Message::ModuleCanvasMessage(
+                        ModuleCanvasMessage::LeftMousePressed(cursor_position.unwrap_or(Point::ORIGIN))
+                    )));
                 }
                 mouse::Event::ButtonPressed(mouse::Button::Right) => {
-                    if let Some(position) = cursor_position {
-                        return (
-                            canvas::event::Status::Captured,
-                            Some(Message::ShowContextMenu(position)),
-                        );
-                    }
+                    return (canvas::event::Status::Captured, 
+                        Some(Message::ModuleCanvasMessage(
+                        ModuleCanvasMessage::RightMousePressed(cursor_position.unwrap_or(Point::ORIGIN))
+                    )));
                 }
                 mouse::Event::ButtonReleased(mouse::Button::Left) => {
+                    state.left_mouse_button.is_pressed = false;
                     return (
                         canvas::event::Status::Captured,
-                        Some(Message::MouseReleased),
-                    );
+                        Some(Message::ModuleCanvasMessage(
+                            ModuleCanvasMessage::LeftMouseReleased(
+                                cursor_position.unwrap_or(Point::ORIGIN)
+                            )
+                        ),
+                    ));
                 }
                 mouse::Event::ButtonReleased(mouse::Button::Right) => {
-                    if let Some(position) = cursor_position {
-                        return (
-                            canvas::event::Status::Captured,
-                            Some(Message::RightMouseReleased(position)),
-                        );
-                    }
+                    return (
+                        canvas::event::Status::Captured,
+                        Some(Message::ModuleCanvasMessage(
+                            ModuleCanvasMessage::RightMouseReleased(cursor_position.unwrap_or(Point::ORIGIN))
+                        )),
+                    );            
                 }
                 mouse::Event::CursorMoved { .. } => {
                     if let Some(position) = cursor_position {
                         return (
                             canvas::event::Status::Captured,
-                            Some(Message::MouseMoved(position)),
+                            Some(Message::ModuleCanvasMessage(ModuleCanvasMessage::Move(position))),
                         );
                     }
                 }
-
                 mouse::Event::WheelScrolled { delta } => {
-                    if let Some(cursor_position) = cursor_position {
-                        // Check if cursor is over a chart
-                        for (chart_id, chart) in &self.module_widget {
-                            if is_point_in_chart(cursor_position, chart) {
-                                let scroll_delta = match delta {
-                                    mouse::ScrollDelta::Lines { y, .. } => y,
-                                    mouse::ScrollDelta::Pixels { y, .. } => y,
-                                };
-
-                                // Return a message instead of mutating directly
-                                return (
-                                    canvas::event::Status::Captured,
-                                    Some(Message::MouseWheel(*chart_id, scroll_delta)),
-                                );
-                            }
-                        }
-                    }
+                    // Handle zoom or scroll
                 }
                 _ => {}
             },
@@ -334,7 +545,6 @@ impl canvas::Program<Message> for ModuleCanvas {
                 }
                 _ => {}
             },
-
             _ => {}
         }
         (canvas::event::Status::Ignored, None)
@@ -342,73 +552,56 @@ impl canvas::Program<Message> for ModuleCanvas {
 
     fn mouse_interaction(
         &self,
-        _state: &Self::State,
+        state: &Self::State,
         bounds: Rectangle,
         cursor: mouse::Cursor,
     ) -> mouse::Interaction {
         let cursor_position = cursor.position_in(bounds);
 
         if let Some(position) = cursor_position {
-            let renderer = ChartRenderer::new(self.dark_mode);
-
-            // Check if hovering over a resize handle
-            for chart in self.module_widget.values() {
-                if renderer.is_on_resize_handle(chart, position) {
-                    // Show resize cursor based on handle position
-                    return mouse::Interaction::ResizingDiagonallyDown;
-                    // or mouse::Interaction::ResizingVertically
-                    // or for diagonal: you might want to detect which corner
-                }
-            }
-
-            // Check if hovering over a chart (for dragging)
-            for chart in self.module_widget.values() {
-                if is_point_in_chart(position, chart) {
+            // Show different cursor based on what's being hovered
+            if let Some(_) = self.hovered_module {
+                if state.left_mouse_button.is_pressed {
+                    return mouse::Interaction::Grabbing;
+                } else {
                     return mouse::Interaction::Grab;
                 }
             }
-
-            // Check if hovering over context menu
+            
+            // Show pointer when hovering context menu
             if let Some(menu) = &self.context_menu {
-                // Check if position is over menu
-                // return mouse::Interaction::Pointer;
+                if menu.get_action_at(position, 90.0).is_some() {
+                    return mouse::Interaction::Pointer;
+                }
+            }
+
+            if let Some((id, resize_type)) = self.get_module_resize_at_position(position) {
+                match resize_type {
+                    ResizeType::Left => {
+                        // Show left resize cursor
+                        return mouse::Interaction::ResizingHorizontally;
+                    }
+                    ResizeType::Right => {
+                        // Show right resize cursor
+                        return mouse::Interaction::ResizingHorizontally;
+                    }
+                    ResizeType::Top => {
+                        // Show top resize cursor
+                        return mouse::Interaction::ResizingVertically;
+                    }
+                    ResizeType::Bottom => {
+                        // Show bottom resize cursor
+                        return mouse::Interaction::ResizingVertically;
+                    }
+                    ResizeType::Corner => {
+                        // Show corner resize cursor
+                        return mouse::Interaction::ResizingDiagonallyDown;
+                    }
+                }
             }
         }
 
         mouse::Interaction::default()
-    }
-}
-
-impl ModuleCanvas {
-    fn draw_grid(&self, frame: &mut canvas::Frame, bounds: Rectangle) {
-        let grid_size = 50.0;
-        let grid_color = if self.dark_mode {
-            Color::from_rgba(1.0, 1.0, 1.0, 0.05)
-        } else {
-            Color::from_rgba(0.0, 0.0, 0.0, 0.1)
-        };
-
-        let grid_rows = (bounds.height / grid_size).ceil() as usize;
-        let grid_cols = (bounds.width / grid_size).ceil() as usize;
-
-        for i in 0..=grid_rows {
-            let y = i as f32 * grid_size;
-            frame.stroke(
-                &canvas::Path::line(Point::new(0.0, y), Point::new(bounds.width, y)),
-                canvas::Stroke::default()
-                    .with_color(grid_color)
-                    .with_width(1.0),
-            );
-        }
-        for i in 0..=grid_cols {
-            let x = i as f32 * grid_size;
-            frame.stroke(
-                &canvas::Path::line(Point::new(x, 0.0), Point::new(x, bounds.height)),
-                canvas::Stroke::default()
-                    .with_color(grid_color)
-                    .with_width(1.0),
-            );
-        }
     }
 }
 
@@ -608,19 +801,4 @@ pub fn draw_context_menu(
             })
             .with_width(1.0),
     );
-}
-
-pub fn view(
-    module_widget: HashMap<usize, ModuleWidget>,
-    dark_mode: bool,
-    context_menu: Option<ContextMenu>,
-) -> Element<'static, Message> {
-    Canvas::new(ModuleCanvas {
-        module_widget,
-        dark_mode,
-        context_menu,
-    })
-    .width(Length::Fill)
-    .height(Length::Fill)
-    .into()
 }
