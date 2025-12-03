@@ -1,6 +1,5 @@
 use crate::module_view::module_widget::{
     MIN_CHART_HEIGHT, MIN_CHART_WIDTH, ModuleWidget, ModuleWidgetWindow, ModuleWidgetWindowView,
-    RESIZE_HANDLE_SIZE,
 };
 use iced::widget::canvas;
 use iced::{Color, Point, Rectangle, Size};
@@ -13,6 +12,7 @@ pub struct ChartSettings {
     pub y_label: String,
 }
 
+#[derive(Clone)]
 pub struct ChartData {
     pub x_value: f32,
     pub y_value: f32,
@@ -38,7 +38,6 @@ impl ModuleWidgetWindowView for ChartWidget {
         // Call the draw_chart function with proper parameters
         draw_chart_impl(frame, self, self.window.position, self.window.size, None);
     }
-
     fn clone_box(&self) -> Box<dyn ModuleWidgetWindowView> {
         Box::new(ChartWidget {
             window: ModuleWidgetWindow {
@@ -61,6 +60,7 @@ impl ModuleWidgetWindowView for ChartWidget {
     }
 }
 
+
 impl ChartWidget {
     pub fn new(dark_mode: bool, settings: ChartSettings) -> Self {
         Self {
@@ -69,16 +69,6 @@ impl ChartWidget {
             datas: Vec::new(),
             window: ModuleWidgetWindow::default(),
         }
-    }
-
-    pub fn is_on_resize_handle(&self, position: Point) -> bool {
-        let handle_x = self.window.position.x + self.window.size.width - RESIZE_HANDLE_SIZE;
-        let handle_y = self.window.position.y + self.window.size.height - RESIZE_HANDLE_SIZE;
-
-        position.x >= handle_x
-            && position.x <= handle_x + RESIZE_HANDLE_SIZE
-            && position.y >= handle_y
-            && position.y <= handle_y + RESIZE_HANDLE_SIZE
     }
 
     fn draw_line_chart(
@@ -368,35 +358,4 @@ fn draw_chart_impl(
     };
 
     chart_widget.draw_line_chart(frame, &chart_area, &chart_widget.datas);
-
-    // Draw resize handle in bottom-right corner
-    let handle_x = position.x + safe_width - RESIZE_HANDLE_SIZE;
-    let handle_y = position.y + safe_height - RESIZE_HANDLE_SIZE;
-    let handle_position = Point::new(handle_x, handle_y);
-
-    // Determine handle color based on hover state
-    let is_hovering = cursor_position
-        .map(|pos| chart_widget.is_on_resize_handle(pos))
-        .unwrap_or(false);
-
-    let handle_color = if is_hovering {
-        Color::from_rgb(0.3, 0.6, 0.9)
-    } else {
-        Color::from_rgba(0.5, 0.5, 0.5, 0.6)
-    };
-
-    frame.fill_rectangle(
-        handle_position,
-        Size::new(RESIZE_HANDLE_SIZE, RESIZE_HANDLE_SIZE),
-        handle_color,
-    );
-}
-
-impl Clone for ChartData {
-    fn clone(&self) -> Self {
-        Self {
-            x_value: self.x_value,
-            y_value: self.y_value,
-        }
-    }
 }

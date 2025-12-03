@@ -39,22 +39,7 @@ pub enum Message {
     SaveContextSettings,
     CancelEditContext,
     EditContext(i8, i8),
-    MousePressed(Point),
-    MouseReleased,
-    MouseMoved(Point),
-    StartResize(usize, Point),
-    ShowContextMenu(Point),
-    ContextMenuAction(ContextMenuAction),
-    RightMouseReleased(Point),
 
-    UpdateChartTitle(String),
-    UpdateXAxisLabel(String),
-    UpdateYAxisLabel(String),
-    ToggleChartLegend(bool),
-    ToggleChartGrid(bool),
-    UpdateLineWidth(String),
-    RefreshChartData,
-    ApplyChartSettings,
 
     // Module View Messages
     MouseWheel(usize, f32),

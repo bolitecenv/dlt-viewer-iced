@@ -188,54 +188,7 @@ impl Dashboard {
             Message::CancelEditContext => {
                 self.dlt_settings.close();
             }
-            Message::StartResize(chart_id, cursor_position) => {
 
-            }
-
-            Message::RightMouseReleased(cursor_position) => {
-                // Execute the action that was hovered when right button is released
-                if self.context_menu.is_some() {
-                    // Check if clicked on context menu
-                    if let Some(menu) = &self.context_menu {
-                        const MENU_RADIUS: f32 = 80.0;
-                        let action = menu.get_action_at(cursor_position, MENU_RADIUS);
-
-                        if let Some(action) = action {
-                            // Trigger the action
-                            return self.update(Message::ContextMenuAction(action));
-                        }
-                    }
-
-                    // Clicked outside menu, close it
-                    self.context_menu = None;
-                    self.selected_chart_id = None;
-                    return Task::none();
-                }
-
-                // No action was hovered, just close the menu
-                self.context_menu = None;
-                self.selected_chart_id = None;
-                self.hovered_action = None;
-            }
-
-            Message::ContextMenuAction(action) => {
-
-            }
-
-            Message::MousePressed(cursor_position) => {
-
-            }
-
-            Message::MouseReleased => {
-
-            }
-
-            Message::MouseMoved(cursor_position) => {
-
-            }
-
-            Message::MouseWheel(chart_id, delta) => {
-            }
             Message::ShiftKeyChanged(pressed) => {
                 self.shift_pressed = pressed;
             }
