@@ -2,7 +2,6 @@ use crate::components::dlt_data_manager::{
     DltDataChartItem, DltDataGattChartItem, DltDataModuleItem, DltDataRegexItem,
 };
 use crate::components::tcp_handler::{apply_ecu_updates, tcp_connection_subscription};
-use crate::components::view::dlt_settings::{DltSelection, DltSettingsView};
 
 use crate::components::{navigation, top_bar};
 use crate::message::{Message, Page};
@@ -33,6 +32,8 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::time::sleep;
+
+use crate::components::modal_window::ModalWindowView;
 
 pub const ICON_FONT: Font = Font {
     family: Family::Name("Font Awesome 7 Free"),
@@ -65,13 +66,13 @@ pub struct Dashboard {
     pub context_menu: Option<ContextMenu>,
     pub selected_chart_id: Option<usize>,
     pub hovered_action: Option<ContextMenuAction>,
-    pub dlt_settings: DltSettingsView,
     pub shift_pressed: bool,
     pub registry: PluginRegistry,
     pub current_plugin: Option<String>,
     pub ecu_list: Vec<FrontDltEcuItem>,
     pub regex_items: Vec<DltDataRegexItem>,
     pub ecu_list_view: EcuListView,
+    pub modal_window: Option<Box<dyn ModalWindowView>>,
 }
 
 impl Default for Dashboard {
@@ -89,7 +90,6 @@ impl Default for Dashboard {
             messages: Vec::new(),
             message_id_counter: 0,
             max_messages: 1000,
-            dlt_settings: DltSettingsView::new(),
             module_canvas: ModuleCanvas::new(),
             next_id: 0,
             resizing: None,
@@ -102,6 +102,7 @@ impl Default for Dashboard {
             ecu_list: Vec::new(),
             regex_items: Vec::new(),
             ecu_list_view: EcuListView::new(ecu_list.clone()),
+            modal_window: None,
         }
     }
 }
@@ -145,49 +146,13 @@ impl Dashboard {
                     }
                 }
             },
-            Message::OpenDltSettings => {
-                self.dlt_settings.open();
-                self.dlt_settings.set_dlt_items(self.ecu_list.clone());
-            }
-            Message::CloseDltSettings => {
-                self.dlt_settings.close();
-            }
-            Message::SelectDltEcu(ecu_id) => {
-                self.dlt_settings.toggle_ecu(ecu_id.clone());
-                self.dlt_settings.select_item(DltSelection::Ecu(ecu_id));
-            }
-            Message::SelectDltApp(ecu_id, app_id) => {
-                self.dlt_settings.toggle_app(ecu_id.clone(), app_id.clone());
-                self.dlt_settings
-                    .select_item(DltSelection::App(ecu_id, app_id));
-            }
-            Message::SelectDltContext(ecu_id, app_id, ctx_id) => {
-                self.dlt_settings
-                    .select_item(DltSelection::Context(ecu_id, app_id, ctx_id));
-            }
+            
             Message::RefreshDltItems => {
                 println!("Refreshing DLT items...");
                 // let dlt_item = DLT_ECU_CONTEXT_STORE.lock().unwrap().clone();
                 // self.dlt_settings.set_dlt_items(dlt_item.clone());
             }
-            Message::ApplyDltSettings => {
-                println!("Applying DLT settings...");
-                self.dlt_settings.close();
-            }
-            Message::UpdateLogLevel(new_level_str) => {
-                println!("Updating log level to {}", new_level_str);
-                if new_level_str.is_empty() {
-                    self.dlt_settings.update_log_level(new_level_str);
-                } else if new_level_str.parse::<i32>().is_ok() {
-                    self.dlt_settings.update_log_level(new_level_str);
-                }
-            }
-            Message::EditContext(log_level, trace_status) => {
-                self.dlt_settings.start_editing(log_level, trace_status);
-            }
-            Message::CancelEditContext => {
-                self.dlt_settings.close();
-            }
+
 
             Message::ShiftKeyChanged(pressed) => {
                 self.shift_pressed = pressed;
