@@ -73,6 +73,7 @@ pub enum Message {
     Confirm(ConfirmMessage),
     OpenSettingsModal,
     CloseSettingsModal,
+    MessageModalWindow(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]

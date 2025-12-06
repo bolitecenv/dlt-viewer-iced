@@ -1,3 +1,4 @@
+use crate::components::confirm_modal_window::ConfirmModal;
 use crate::components::dlt_data_manager::{
     DltDataChartItem, DltDataGattChartItem, DltDataModuleItem, DltDataRegexItem,
 };
@@ -17,6 +18,7 @@ use crate::types::{FrontDltAppIdItem, FrontDltEcuItem};
 
 use crate::message::ConnectionEvent;
 use iced::futures::{self};
+use iced::widget::stack;
 use iced::window::drag;
 use iced::{
     Color, Font, Point, Size,
@@ -119,6 +121,7 @@ impl Dashboard {
                 let _ip = self.tcp_ip.clone();
                 let _port = self.tcp_port.clone();
                 self.should_connect = true;
+                return Task::done(Message::OpenSettingsModal);
             }
             Message::ClearMessages => {
                 self.messages.clear();
@@ -256,6 +259,23 @@ impl Dashboard {
             Message::ModuleCanvasMessage(message) => {
                 return self.module_canvas.update(message);
             },
+            Message::OpenSettingsModal => {
+                // Open your settings modal here
+                self.modal_window = Some(Box::new(ConfirmModal::new("Settings Modal".to_string())));
+            },
+            Message::CloseSettingsModal => {
+                // Close your settings modal here
+                self.modal_window = None;
+            },
+            Message::MessageModalWindow(content) => {
+                // Open a message modal with the given content
+                if let Some(modal_window) = &self.modal_window {
+                    if let Some(msg) = modal_window.update(content) {
+                        return Task::done(msg);
+                    }
+                }
+            },
+            
             _ => {}
         }
         Task::none()
@@ -322,6 +342,14 @@ impl Dashboard {
         let base_view = container(main_layout)
             .width(Length::Fill)
             .height(Length::Fill);
+
+        if let Some(modal) = &self.modal_window {
+            let modal_element = modal.draw(self.dark_mode);
+            return container(stack![base_view, modal_element])
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .into();
+        }
 
         base_view.into()
     }

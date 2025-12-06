@@ -1,4 +1,4 @@
-use iced::widget::{center, mouse_area, opaque};
+use iced::widget::{center, mouse_area, opaque, scrollable};
 use iced::{
     Color, Element, Length, Theme,
     alignment::{Horizontal, Vertical},
@@ -7,10 +7,8 @@ use iced::{
     },
     Font,
 };
+use crate::app::ICON_FONT;
 use crate::message::Message;
-
-// Define the icon font constant
-const ICON_FONT: Font = Font::with_name("Font Awesome 6 Free");
 
 pub struct ModalConfig {
     pub width: f32,
@@ -40,11 +38,11 @@ pub trait ModalWindowView {
     fn title(&self) -> String;
     fn get_config(&self) -> ModalConfig;
     fn content(&self) -> Element<'_, Message>;
-    fn main_content(&self, dark_mode: bool) -> Element<'_, Message>;
     fn close_message(&self) -> Message;
     fn refresh_message(&self) -> Option<Message>;
     fn apply_message(&self) -> Option<Message>;
-    
+    fn update(&self, message: String) -> Option<Message>;
+
     fn draw(&self, dark_mode: bool) -> Element<'_, Message> {
         self.modal_window_view(dark_mode)
     }
@@ -84,62 +82,82 @@ pub trait ModalWindowView {
         
         if config.show_apply {
             if let Some(apply_msg) = self.apply_message() {
+                let apply_button = button(text("Apply").size(14))
+                    .padding(10)
+                    .style(move |theme: &Theme, status| {
+                        let base_style = button::primary(theme, status);
+                        button::Style {
+                            background: Some(Color::from_rgb(0.2, 0.6, 0.2).into()),
+                            text_color: Color::WHITE,
+                            ..base_style
+                        }
+                    });
+                
                 footer_row = footer_row.push(
-                    button(text("Apply").size(14))
-                        .on_press(apply_msg)
-                        .padding(10)
-                        .style(move |theme: &Theme, status| {
-                            let base_style = button::primary(theme, status);
-                            button::Style {
-                                background: Some(Color::from_rgb(0.2, 0.6, 0.2).into()),
-                                text_color: Color::WHITE,
-                                ..base_style
-                            }
-                        })
+                    if config.can_apply {
+                        apply_button.on_press(apply_msg)
+                    } else {
+                        apply_button
+                    }
                 );
             }
+        }
+
+        // Build header row with conditional close button
+        let mut header_row = row![
+            text(config.title.clone()).size(20).color(if dark_mode {
+                Color::WHITE
+            } else {
+                Color::BLACK
+            }),
+            Space::new(Length::Fill, Length::Shrink),
+        ]
+        .spacing(20)
+        .align_y(Vertical::Center);
+
+        if config.can_close {
+            header_row = header_row.push(
+                button(text("✕").font(ICON_FONT).size(16))
+                    .on_press(self.close_message())
+                    .padding([4, 8])
+                    .style(move |theme: &Theme, status| {
+                        let base_style = button::primary(theme, status);
+                        button::Style {
+                            background: Some(Color::from_rgb(0.8, 0.2, 0.2).into()),
+                            text_color: Color::WHITE,
+                            ..base_style
+                        }
+                    })
+            );
         }
 
         // Main popup content
         let popup_content = container(
             column![
                 // Header
-                row![
-                    text(config.title.clone()).size(20).color(if dark_mode {
-                        Color::WHITE
-                    } else {
-                        Color::BLACK
-                    }),
-                    Space::new(Length::Fill, Length::Shrink),
-                    button(text("✕").size(16))
-                        .on_press(self.close_message())
-                        .padding([4, 8])
-                        .style(move |theme: &Theme, status| {
-                            let base_style = button::primary(theme, status);
-                            button::Style {
-                                background: Some(Color::from_rgb(0.8, 0.2, 0.2).into()),
-                                text_color: Color::WHITE,
-                                ..base_style
-                            }
-                        })
-                ]
-                .spacing(20)
-                .align_y(Vertical::Center),
+                header_row,
                 
                 // Divider
                 self.divider(dark_mode),
 
                 Space::new(Length::Shrink, Length::Fixed(10.0)),
                 
-                // Main content (provided by implementation)
-                content,
+                // Main content (provided by implementation) - takes up all available space
+                container(content)
+                    .width(Length::Fill)
+                    .height(Length::Fill),
 
-                Space::new(Length::Shrink, Length::Fixed(20.0)),
+                Space::new(Length::Shrink, Length::Fixed(10.0)),
+                
+                // Divider before footer
+                self.divider(dark_mode),
+                
+                Space::new(Length::Shrink, Length::Fixed(10.0)),
                 
                 // Footer buttons
                 footer_row
             ]
-            .spacing(10)
+            .spacing(0)
             .padding(20),
         )
         .width(Length::Fixed(config.width))

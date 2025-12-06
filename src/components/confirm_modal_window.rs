@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use crate::components::modal_window::{ ModalWindowView, ModalConfig };
 use crate::message::Message;
 use iced::widget::{center, mouse_area, opaque};
@@ -21,15 +23,32 @@ pub struct ConfirmModal {
     message: String,
 }
 
+impl FromStr for ConfirmMessage {
+    type Err = ();
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        match input {
+            "confirm" => Ok(ConfirmMessage::Confirm),
+            "cancel" => Ok(ConfirmMessage::Cancel),
+            _ => Err(()),
+        }
+    }
+}
+
 impl ConfirmModal {
     pub fn new(message: String) -> Self {
         Self { message }
     }
 
-    pub fn update(&mut self, message: ConfirmMessage) -> Option<bool> {
+    pub fn handle_update(&self, message: ConfirmMessage) -> Option<Message> {
         match message {
-            ConfirmMessage::Confirm => Some(true),
-            ConfirmMessage::Cancel => Some(false),
+            ConfirmMessage::Confirm => {
+                println!("Confirmed action.");
+                None
+            }
+            ConfirmMessage::Cancel => {
+                Some(Message::CloseSettingsModal)
+            }
         }
     }
 }
@@ -41,10 +60,12 @@ impl ModalWindowView for ConfirmModal {
 
     fn get_config(&self) -> ModalConfig {
         ModalConfig {
-            width: 400.0,
-            height: 200.0,
+            width: 800.0,
+            height: 600.0,
             show_refresh: false,
             show_apply: true,
+            can_apply: true,
+            can_close: true,
             title: self.title(),
             ..Default::default()
         }
@@ -58,12 +79,8 @@ impl ModalWindowView for ConfirmModal {
         .into()
     }
 
-    fn main_content(&self, dark_mode: bool) -> Element<'_, Message> {
-        self.draw(dark_mode)
-    }
-
     fn close_message(&self) -> Message {
-        Message::Confirm(ConfirmMessage::Cancel)
+        Message::MessageModalWindow("cancel".to_string())
     }
 
     fn refresh_message(&self) -> Option<Message> {
@@ -71,6 +88,10 @@ impl ModalWindowView for ConfirmModal {
     }
 
     fn apply_message(&self) -> Option<Message> {
-        Some(Message::Confirm(ConfirmMessage::Confirm))
+        Some(Message::MessageModalWindow("confirm".to_string()))
+    }
+
+    fn update(&self, message: String) -> Option<Message> {
+        self.handle_update(message.parse().ok()?)
     }
 }
