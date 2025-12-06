@@ -1,1 +1,1 @@
-// pub mod chart_widget_setting_modal;
+pub mod chart_widget_setting_modal;

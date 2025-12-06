@@ -33,6 +33,7 @@ use pages::table::DltMessageRow;
 use rand::Rng;
 use regex::Regex;
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -121,7 +122,6 @@ impl Dashboard {
                 let _ip = self.tcp_ip.clone();
                 let _port = self.tcp_port.clone();
                 self.should_connect = true;
-                return Task::done(Message::OpenSettingsModal);
             }
             Message::ClearMessages => {
                 self.messages.clear();
@@ -257,7 +257,7 @@ impl Dashboard {
                 self.ecu_list_view.clear_message();
             }
             Message::ModuleCanvasMessage(message) => {
-                return self.module_canvas.update(message);
+                return self.module_canvas.update(message, &mut self.modal_window);
             },
             Message::OpenSettingsModal => {
                 // Open your settings modal here

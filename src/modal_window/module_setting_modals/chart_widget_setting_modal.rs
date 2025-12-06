@@ -1,7 +1,9 @@
 use crate::components::dlt_data_manager::DltDataRegexItem;
 use crate::message::Message;
-use crate::modal_window::modal_window::{ModalConfig, ModalWindowView};
+use crate::modal_window::modal_window::{ModalConfig, ModalWindowMessage, ModalWindowView, deserialize_message, serialize_message};
 use crate::module_view::{ChartWidget, ModuleWidget};
+use bincode::{Decode, Encode};
+use iced::Task;
 use iced::{
     Color, Element, Length, Theme,
     widget::{
@@ -10,7 +12,7 @@ use iced::{
 };
 use std::str::FromStr;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Encode, Decode)]
 pub enum ChartModalMessage {
     UpdateChartTitle(String),
     UpdateXAxisLabel(String),
@@ -48,31 +50,61 @@ impl ChartWidgetModal {
         }
     }
 
-    pub fn handle_update(&self, message: ChartModalMessage) -> Task<Message> {
+    fn create_custom_message(msg: ChartModalMessage) -> ModalWindowMessage {
+        let data = serialize_message(&msg).unwrap();
+        ModalWindowMessage::Custom("chart_modal".to_string(), data)
+    }
+
+    pub fn handle_update(&mut self, message: ModalWindowMessage) -> Task<Message> {
         match message {
-            ChartModalMessage::UpdateChartTitle(title) => {
-                None
+            ModalWindowMessage::Apply => {
+                println!("Confirmed");
             }
-            ChartModalMessage::UpdateXAxisLabel(label) => {
-                None
+            ModalWindowMessage::Close => {
+                println!("Cancelled");
             }
-            ChartModalMessage::UpdateYAxisLabel(label) => {
-                None
+            ModalWindowMessage::Refresh => {
+                println!("Refreshed");
             }
-            ChartModalMessage::UpdateRegexPattern(pattern) => {
-                None
-            }
-            ChartModalMessage::ToggleLegend => {
-                // Implement legend toggle logic
-                None
-            }
-            ChartModalMessage::ToggleGrid => {
-                // Implement grid toggle logic
-                None
+            ModalWindowMessage::Custom(msg_type, data) => {
+                if msg_type == "chart_modal" {
+                    if let Ok(modal_msg) = deserialize_message::<ChartModalMessage>(&data) {
+                        match modal_msg {
+                            ChartModalMessage::UpdateChartTitle(title) => {
+                                self.chart_widget.window.title = title;
+                            }
+                            ChartModalMessage::UpdateXAxisLabel(label) => {
+                                self.chart_widget.settings.x_label = label;
+                            }
+                            ChartModalMessage::UpdateYAxisLabel(label) => {
+                                self.chart_widget.settings.y_label = label;
+                            }
+                            ChartModalMessage::UpdateRegexPattern(pattern) => {
+                                self.regex_item.regex = pattern;
+                            }
+                            ChartModalMessage::ToggleLegend => {
+                                self.chart_widget.settings.show_legend = !self.chart_widget.settings.show_legend;
+                            }
+                            ChartModalMessage::ToggleGrid => {
+                                self.chart_widget.settings.show_grid = !self.chart_widget.settings.show_grid;
+                            }
+                            ChartModalMessage::Confirm => {
+                                println!("Chart settings confirmed");
+                            }
+                            ChartModalMessage::Cancel => {
+                                println!("Chart settings cancelled");
+                            }
+                            ChartModalMessage::Refresh => {
+                                println!("Chart settings refreshed");
+                            }
+                        }
+                    }
+                }
             }
 
-            _ => None,
+            _ => {},
         }
+        Task::none()
     }
 }
 
@@ -94,23 +126,11 @@ impl ModalWindowView for ChartWidgetModal {
         }
     }
 
-    fn close_message(&self) -> Message {
-        Message::MessageModalWindow("cancel".to_string())
+    fn update(&mut self, message: ModalWindowMessage) -> Task<Message> {
+        self.handle_update(message)
     }
 
-    fn refresh_message(&self) -> Option<Message> {
-        Some(Message::MessageModalWindow("refresh".to_string()))
-    }
-
-    fn apply_message(&self) -> Option<Message> {
-        Some(Message::MessageModalWindow("confirm".to_string()))
-    }
-
-    fn update(&self, message: String) -> Option<Message> {
-        self.handle_update(message.parse().ok()?)
-    }
-
-    fn content(&self) -> Element<'_, Message> {
+    fn content(&self) -> Element<'_, ModalWindowMessage> {
         let text_color = Color::WHITE;
         let label_color = Color::from_rgb(0.7, 0.7, 0.7);
 
@@ -119,7 +139,7 @@ impl ModalWindowView for ChartWidgetModal {
             row![
                 text("Title:").size(14).color(label_color).width(Length::Fixed(120.0)),
                 text_input("Enter chart title", &self.chart_widget.window.title)
-                    .on_input(|title| Message::MessageModalWindow("cancel".to_string()))
+                    .on_input(|title| Self::create_custom_message(ChartModalMessage::UpdateChartTitle(title)))
                     .size(14)
                     .width(Length::Fill),
             ]
@@ -132,7 +152,7 @@ impl ModalWindowView for ChartWidgetModal {
             row![
                 text("X Axis Label:").size(14).color(label_color).width(Length::Fixed(120.0)),
                 text_input("Enter X axis label", &self.chart_widget.settings.x_label)
-                    .on_input(|label| Message::MessageModalWindow("cancel".to_string()))
+                    .on_input(|label| Self::create_custom_message(ChartModalMessage::UpdateXAxisLabel(label)))
                     .size(14)
                     .width(Length::Fill),
             ]
@@ -145,7 +165,7 @@ impl ModalWindowView for ChartWidgetModal {
             row![
                 text("Y Axis Label:").size(14).color(label_color).width(Length::Fixed(120.0)),
                 text_input("Enter Y axis label", &self.chart_widget.settings.y_label)
-                    .on_input(|label| Message::MessageModalWindow("cancel".to_string()))
+                    .on_input(|label| Self::create_custom_message(ChartModalMessage::UpdateYAxisLabel(label)))
                     .size(14)
                     .width(Length::Fill),
             ]
@@ -161,7 +181,7 @@ impl ModalWindowView for ChartWidgetModal {
             row![
                 text("Regex Pattern:").size(14).color(label_color).width(Length::Fixed(120.0)),
                 text_input("Enter regex pattern", &self.regex_item.regex)
-                    .on_input(|pattern| Message::MessageModalWindow("cancel".to_string()))
+                    .on_input(|pattern| Self::create_custom_message(ChartModalMessage::UpdateRegexPattern(pattern)))
                     .size(14)
                     .width(Length::Fill),
             ]

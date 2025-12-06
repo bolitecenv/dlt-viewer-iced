@@ -1,4 +1,6 @@
 use crate::message::Message;
+use crate::modal_window::confirm_modal_window::ConfirmModal;
+use crate::modal_window::modal_window::ModalWindowView;
 use crate::module_view::ChartWidget;
 use crate::module_view::ModuleWidget;
 use crate::module_view::chart_widget::ChartSettings;
@@ -106,7 +108,7 @@ impl ModuleCanvas {
         }
     }
 
-    pub fn update(&mut self, message: ModuleCanvasMessage) -> Task<Message> {
+    pub fn update(&mut self, message: ModuleCanvasMessage, app_view: &mut Option<Box<dyn ModalWindowView>>) -> Task<Message> {
         match message {
             ModuleCanvasMessage::AddChart => {
                 println!("Add Chart action triggered");
@@ -134,6 +136,8 @@ impl ModuleCanvas {
             }
             ModuleCanvasMessage::AddGanttChart => {
                 println!("Add Gantt Chart action triggered");
+                app_view.replace(Box::new(ConfirmModal::new("Gantt Chart Added".to_string())));
+
                 self.context_menu = None;
             }
             ModuleCanvasMessage::Delete => {
@@ -235,7 +239,7 @@ impl ModuleCanvas {
             }
 
             // Handle mouse button messages
-            ModuleCanvasMessage::RightMouseReleased(_position) => {
+                ModuleCanvasMessage::RightMouseReleased(_position) => {
                 // Handle right mouse button release if needed
                 self.state.right_mouse_button.is_pressed = false;
 
@@ -248,7 +252,10 @@ impl ModuleCanvas {
                             ContextMenuAction::Duplicate => ModuleCanvasMessage::Duplicate,
                             ContextMenuAction::Settings => ModuleCanvasMessage::Settings,
                         };
-                        return Task::perform(async {}, move |_| Message::ModuleCanvasMessage(message.clone()));
+
+                        // Handle the action synchronously to avoid sending non-Send types via Task::done
+                        let _ = self.update(message, app_view);
+                        return Task::none();
                     }
 
                     self.context_menu = None;
