@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use iced::{Color, Point, Size, widget::canvas};
 
 use crate::{components::dlt_data_manager::DltDataRegexItem, message::Message};
@@ -52,6 +54,7 @@ pub struct ModuleWidgetWindow {
     pub border_color: Color,
     pub border_width: f32,
     pub bg_color: Color,
+    pub title: String,
 }
 
 // Default window
@@ -63,6 +66,7 @@ impl ModuleWidgetWindow {
             border_color: Color::from_rgb(0.0, 0.0, 0.0),
             border_width: 1.0,
             bg_color: Color::from_rgb(1.0, 1.0, 1.0),
+            title: "Untitled".to_string(),
         }
     }
 }
@@ -157,6 +161,8 @@ pub trait ModuleWidgetWindowView: Send + Sync {
     }
 
     fn clone_box(&self) -> Box<dyn ModuleWidgetWindowView>;
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 impl<T> ModuleScreen<T>

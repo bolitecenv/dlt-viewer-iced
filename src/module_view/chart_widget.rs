@@ -3,6 +3,7 @@ use crate::module_view::module_widget::{
 };
 use iced::widget::canvas;
 use iced::{Color, Point, Rectangle, Size};
+use std::any::Any;
 
 pub struct ChartSettings {
     pub show_grid: bool,
@@ -46,6 +47,7 @@ impl ModuleWidgetWindowView for ChartWidget {
                 border_color: self.window.border_color,
                 border_width: self.window.border_width,
                 bg_color: self.window.bg_color,
+                title: self.window.title.clone(),
             },
             settings: ChartSettings {
                 show_grid: self.settings.show_grid,
@@ -57,6 +59,14 @@ impl ModuleWidgetWindowView for ChartWidget {
             datas: self.datas.clone(),
             dark_mode: self.dark_mode,
         })
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
 

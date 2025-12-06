@@ -1,5 +1,5 @@
-use crate::components::confirm_modal_window::ConfirmMessage;
 use crate::components::tcp_handler::EcuUpdateInfo;
+use crate::modal_window::modal_window::ModalWindowMessage;
 use crate::module_view::ModuleCanvas;
 use crate::module_view::canvas::{ModuleCanvasMessage};
 use crate::plugin::PluginMessage;
@@ -70,10 +70,9 @@ pub enum Message {
     // Module Canvas Events
     ModuleCanvasMessage(ModuleCanvasMessage),
 
-    Confirm(ConfirmMessage),
     OpenSettingsModal,
     CloseSettingsModal,
-    MessageModalWindow(String),
+    ModalWindowMessage(ModalWindowMessage),
 }
 
 #[derive(Debug, Clone, PartialEq)]

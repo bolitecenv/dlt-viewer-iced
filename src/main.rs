@@ -7,6 +7,7 @@ mod module_view;
 mod plugin;
 mod plugins;
 mod plugin_registry;
+mod modal_window;
 
 use app::Dashboard;
 

@@ -1,4 +1,3 @@
-use crate::components::confirm_modal_window::ConfirmModal;
 use crate::components::dlt_data_manager::{
     DltDataChartItem, DltDataGattChartItem, DltDataModuleItem, DltDataRegexItem,
 };
@@ -9,6 +8,8 @@ use crate::message::{Message, Page};
 use crate::module_view::{self, ModuleCanvas};
 use crate::module_view::canvas::{ContextMenu, ContextMenuAction, ModuleCanvasMessage}; // NEW: Add context menu imports
 
+use crate::modal_window::modal_window::*;
+use crate::modal_window::confirm_modal_window::*;
 
 use crate::pages::ecu_setting::{EcuListView, EcuSelection};
 use crate::pages::{self};
@@ -35,7 +36,6 @@ use std::collections::HashMap;
 use std::time::Duration;
 use tokio::time::sleep;
 
-use crate::components::modal_window::ModalWindowView;
 
 pub const ICON_FONT: Font = Font {
     family: Family::Name("Font Awesome 7 Free"),
@@ -267,12 +267,10 @@ impl Dashboard {
                 // Close your settings modal here
                 self.modal_window = None;
             },
-            Message::MessageModalWindow(content) => {
-                // Open a message modal with the given content
-                if let Some(modal_window) = &self.modal_window {
-                    if let Some(msg) = modal_window.update(content) {
-                        return Task::done(msg);
-                    }
+            Message::ModalWindowMessage(content) => {
+                if let Some(modal) = &mut self.modal_window {
+                    let task = modal.update(content);
+                    return task;
                 }
             },
             

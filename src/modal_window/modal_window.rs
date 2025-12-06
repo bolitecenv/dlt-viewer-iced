@@ -1,3 +1,6 @@
+use bincode::{
+    Decode, Encode,
+};use iced::Task;
 use iced::widget::{center, mouse_area, opaque, scrollable};
 use iced::{
     Color, Element, Length, Theme,
@@ -9,6 +12,14 @@ use iced::{
 };
 use crate::app::ICON_FONT;
 use crate::message::Message;
+
+#[derive(Debug, Clone)]
+pub enum ModalWindowMessage {
+    Close,
+    Refresh,
+    Apply,
+    Custom(String, Vec<u8>),
+}
 
 pub struct ModalConfig {
     pub width: f32,
@@ -37,11 +48,8 @@ impl Default for ModalConfig {
 pub trait ModalWindowView {
     fn title(&self) -> String;
     fn get_config(&self) -> ModalConfig;
-    fn content(&self) -> Element<'_, Message>;
-    fn close_message(&self) -> Message;
-    fn refresh_message(&self) -> Option<Message>;
-    fn apply_message(&self) -> Option<Message>;
-    fn update(&self, message: String) -> Option<Message>;
+    fn content(&self) -> Element<'_, ModalWindowMessage>;
+    fn update(&mut self, message: ModalWindowMessage) -> Task<Message>;
 
     fn draw(&self, dark_mode: bool) -> Element<'_, Message> {
         self.modal_window_view(dark_mode)
@@ -64,25 +72,22 @@ pub trait ModalWindowView {
 
     fn modal_window_view(&self, dark_mode: bool) -> Element<'_, Message> {
         let config = self.get_config();
-        let content = self.content();
+        let content = self.content().map(Message::ModalWindowMessage);
 
         let mut footer_row = row![].spacing(10).width(Length::Fill);
         
         if config.show_refresh {
-            if let Some(refresh_msg) = self.refresh_message() {
-                footer_row = footer_row.push(
+            footer_row = footer_row.push(
                     button(text("Refresh").size(14))
-                        .on_press(refresh_msg)
+                        .on_press(Message::ModalWindowMessage(ModalWindowMessage::Refresh))
                         .padding(10)
-                );
-            }
+            );
         }
         
         footer_row = footer_row.push(Space::new(Length::Fill, Length::Shrink));
         
         if config.show_apply {
-            if let Some(apply_msg) = self.apply_message() {
-                let apply_button = button(text("Apply").size(14))
+            let apply_button = button(text("Apply").size(14))
                     .padding(10)
                     .style(move |theme: &Theme, status| {
                         let base_style = button::primary(theme, status);
@@ -95,12 +100,11 @@ pub trait ModalWindowView {
                 
                 footer_row = footer_row.push(
                     if config.can_apply {
-                        apply_button.on_press(apply_msg)
+                        apply_button.on_press(Message::ModalWindowMessage(ModalWindowMessage::Apply))
                     } else {
                         apply_button
                     }
                 );
-            }
         }
 
         // Build header row with conditional close button
@@ -118,7 +122,7 @@ pub trait ModalWindowView {
         if config.can_close {
             header_row = header_row.push(
                 button(text("✕").font(ICON_FONT).size(16))
-                    .on_press(self.close_message())
+                    .on_press(Message::ModalWindowMessage(ModalWindowMessage::Close))
                     .padding([4, 8])
                     .style(move |theme: &Theme, status| {
                         let base_style = button::primary(theme, status);
@@ -209,4 +213,16 @@ pub trait ModalWindowView {
             )
         ).into()
     }
+}
+
+
+// Usually Encode needs the context generic too in Bincode 2.0
+pub fn serialize_message<T: Encode>(msg: T) -> Result<Vec<u8>, bincode::error::EncodeError> {
+    bincode::encode_to_vec(&msg, bincode::config::standard())
+}
+
+// FIX: Added <()> to Decode
+pub fn deserialize_message<T: Decode<()>>(data: &[u8]) -> Result<T, bincode::error::DecodeError> {
+    bincode::decode_from_slice(data, bincode::config::standard())
+        .map(|(result, _)| result)
 }
