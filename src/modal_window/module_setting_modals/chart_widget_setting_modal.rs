@@ -38,13 +38,15 @@ impl FromStr for ChartModalMessage {
 }
 
 pub struct ChartWidgetModal {
+    pub title: String,
     pub regex_item: DltDataRegexItem,
     pub chart_widget: ChartWidget,
 }
 
 impl ChartWidgetModal {
-    pub fn new(regex_item: DltDataRegexItem, chart_widget: ChartWidget) -> Self {
+    pub fn new(title: String, regex_item: DltDataRegexItem, chart_widget: ChartWidget) -> Self {
         Self {
+            title,
             regex_item,
             chart_widget,
         }
@@ -109,10 +111,6 @@ impl ChartWidgetModal {
 }
 
 impl ModalWindowView for ChartWidgetModal {
-    fn title(&self) -> String {
-        "Chart Settings".to_string()
-    }
-
     fn get_config(&self) -> ModalConfig {
         ModalConfig {
             width: 700.0,
@@ -121,7 +119,7 @@ impl ModalWindowView for ChartWidgetModal {
             show_apply: true,
             can_apply: true,
             can_close: true,
-            title: self.title(),
+            title: self.title.clone(),
             ..Default::default()
         }
     }

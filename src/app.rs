@@ -261,7 +261,6 @@ impl Dashboard {
             },
             Message::OpenSettingsModal => {
                 // Open your settings modal here
-                self.modal_window = Some(Box::new(ConfirmModal::new("Settings Modal".to_string())));
             },
             Message::CloseSettingsModal => {
                 // Close your settings modal here

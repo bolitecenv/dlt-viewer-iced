@@ -8,6 +8,9 @@ use crate::module_view::module_widget::*;
 use iced::widget::canvas::{self, Canvas};
 use iced::{Color, Element, Length, Point, Rectangle, Renderer, Size, Task, Theme, keyboard, mouse};
 use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::mpsc::channel;
 
 pub const GRID_SIZE: f32 = 50.0;
 pub const SNAP_THRESHOLD: f32 = 10.0;
@@ -136,7 +139,10 @@ impl ModuleCanvas {
             }
             ModuleCanvasMessage::AddGanttChart => {
                 println!("Add Gantt Chart action triggered");
-                app_view.replace(Box::new(ConfirmModal::new("Gantt Chart Added".to_string())));
+                app_view.replace(Box::new(ConfirmModal::new("Gantt Chart Added".to_string(),
+                                                              "Gantt Chart has been added successfully.".to_string())
+                ));
+
 
                 self.context_menu = None;
             }

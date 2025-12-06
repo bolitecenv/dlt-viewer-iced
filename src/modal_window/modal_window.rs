@@ -40,13 +40,12 @@ impl Default for ModalConfig {
             can_apply: true,
             show_refresh: false,
             show_apply: true,
-            title: "Modal Window".to_string(),
+            title: "Untitled".to_string(),
         }
     }
 }
 
 pub trait ModalWindowView {
-    fn title(&self) -> String;
     fn get_config(&self) -> ModalConfig;
     fn content(&self) -> Element<'_, ModalWindowMessage>;
     fn update(&mut self, message: ModalWindowMessage) -> Task<Message>;
