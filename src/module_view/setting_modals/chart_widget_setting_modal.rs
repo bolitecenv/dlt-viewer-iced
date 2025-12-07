@@ -141,14 +141,15 @@ impl SettingModal for ChartWidgetModal {
         .into()
     }
 
-    fn update_setting_modal(&mut self, message: SettingModalMessage, module: &mut ModuleWidget) -> Task<Message> {
+    fn update(&mut self, message: SettingModalMessage, module: Option<&mut ModuleWidget>) -> Task<Message> {
         match message {
             SettingModalMessage::Apply => {
                 println!("Confirmed");
-                let chart_widget = module.module_widget.as_any_mut().downcast_mut::<ChartWidget>().unwrap();
-                *chart_widget = self.chart_widget.clone();
+                println!("Module ID: {}", module.as_ref().map_or(0, |m| m.id));
 
-                println!("Module ID: {}", module.id);
+                if let Some(chart_widget) = module.and_then(|m| m.module_widget.as_any_mut().downcast_mut::<ChartWidget>()) {
+                    *chart_widget = self.chart_widget.clone();
+                }
                 return Task::done(Message::CloseSettingsModal);
             }
             SettingModalMessage::Close => {

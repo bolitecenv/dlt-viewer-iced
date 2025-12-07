@@ -8,7 +8,7 @@ use crate::message::{Message, Page};
 use crate::module_view::setting_modals::chart_widget_setting_modal::ChartWidgetModal;
 use crate::module_view::setting_modals::setting_modal_window::SettingModal;
 use crate::module_view::{self, ModuleCanvas};
-use crate::module_view::canvas::{ContextMenu, ContextMenuAction, ModuleCanvasMessage}; // NEW: Add context menu imports
+use crate::module_view::canvas::{ContextMenuAction, ModuleCanvasMessage}; // NEW: Add context menu imports
 
 use crate::modal_window::modal_window::*;
 use crate::modal_window::confirm_modal_window::*;
@@ -66,12 +66,6 @@ pub struct Dashboard {
     pub message_id_counter: u32,
     pub max_messages: usize,
     pub module_canvas: ModuleCanvas,
-    pub next_id: usize,
-    pub resizing: Option<ResizeState>,
-    pub context_menu: Option<ContextMenu>,
-    pub selected_chart_id: Option<usize>,
-    pub hovered_action: Option<ContextMenuAction>,
-    pub shift_pressed: bool,
     pub registry: PluginRegistry,
     pub current_plugin: Option<String>,
     pub ecu_list: Vec<FrontDltEcuItem>,
@@ -96,12 +90,6 @@ impl Default for Dashboard {
             message_id_counter: 0,
             max_messages: 1000,
             module_canvas: ModuleCanvas::new(),
-            next_id: 0,
-            resizing: None,
-            context_menu: None,
-            selected_chart_id: None,
-            hovered_action: None,
-            shift_pressed: false,
             registry: PluginRegistry::new(),
             current_plugin: None,
             ecu_list: Vec::new(),
@@ -160,7 +148,6 @@ impl Dashboard {
 
 
             Message::ShiftKeyChanged(pressed) => {
-                self.shift_pressed = pressed;
             }
             Message::PluginSelected(name) => {
                 self.current_plugin = Some(name);
@@ -271,22 +258,14 @@ impl Dashboard {
             Message::ModalWindowMessage(content) => {
                 if let Some(modal) = &mut self.modal_window {
                     let mut task: Task<Message> = Task::none();
-                    if let Some(ref_id) = modal.get_id() {
-                        println!("Modal ID: {}", ref_id);
-                        
-                        // Get mutable reference to the widget
+                    if let Some(ref_id) = modal.get_id() {                      
                         let widget = self.module_canvas.module_widget.get_mut(&(ref_id as usize));
 
-                        // Downcast to ChartWidgetModal
-                        if let Some(setting_modal) = modal.as_any_mut().downcast_mut::<ChartWidgetModal>() {
-                            task = setting_modal.update_setting_modal(
-                                content.into(),
-                                widget.unwrap(),
-                            );
-                        }
-                    } else {
-                        task = modal.update(content);
+                        task = modal.update(content.into(), widget);
+                    }else{
+                        task = modal.update(content.into(), None);
                     }
+                    
                     return task;
                 }
             },

@@ -3,6 +3,7 @@ use std::any::Any;
 use crate::app::ICON_FONT;
 use crate::modal_window::modal_window::{ModalConfig, ModalWindowMessage, ModalWindowView, deserialize_message, serialize_message};
 use crate::message::Message;
+use crate::module_view::ModuleWidget;
 use iced::Task;
 use iced::advanced::graphics::text::cosmic_text::ttf_parser::Width;
 use iced::widget::text_input;
@@ -73,7 +74,7 @@ impl ModalWindowView for ConfirmModal {
             .into()
     }
 
-    fn update(&mut self, message: ModalWindowMessage) -> Task<Message> {
+    fn update(&mut self, message: ModalWindowMessage, module: Option<&mut ModuleWidget>) -> Task<Message> {
         match message {
             ModalWindowMessage::Apply => {
                 return Task::done(Message::CloseSettingsModal);

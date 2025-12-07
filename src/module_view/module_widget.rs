@@ -56,6 +56,7 @@ pub struct ModuleWidgetWindow {
     pub border_width: f32,
     pub bg_color: Color,
     pub title: String,
+    pub subtitle: String,
 }
 
 // Default window
@@ -68,6 +69,7 @@ impl ModuleWidgetWindow {
             border_width: 1.0,
             bg_color: Color::from_rgb(1.0, 1.0, 1.0),
             title: "Untitled".to_string(),
+            subtitle: "".to_string(),
         }
     }
 }

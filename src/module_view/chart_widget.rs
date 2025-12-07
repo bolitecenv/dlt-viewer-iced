@@ -50,6 +50,7 @@ impl ModuleWidgetWindowView for ChartWidget {
                 border_width: self.window.border_width,
                 bg_color: self.window.bg_color,
                 title: self.window.title.clone(),
+                subtitle: self.window.subtitle.clone(),
             },
             settings: ChartSettings {
                 show_grid: self.settings.show_grid,
@@ -328,7 +329,7 @@ fn draw_chart_impl(
     };
 
     frame.fill_text(canvas::Text {
-        content: "Analytics".to_string(),
+        content: chart_widget.window.title.clone(),
         position: Point::new(
             position.x + 15.0,
             position.y + 15.0,
@@ -346,7 +347,7 @@ fn draw_chart_impl(
     };
 
     frame.fill_text(canvas::Text {
-        content: "Sales Performance".to_string(),
+        content: chart_widget.window.subtitle.clone(),
         position: Point::new(
             position.x + 15.0,
             position.y + 42.0,

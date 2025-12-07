@@ -15,6 +15,7 @@ use iced::{
 };
 use crate::app::ICON_FONT;
 use crate::message::Message;
+use crate::module_view::ModuleWidget;
 
 #[derive(Debug, Clone)]
 pub enum ModalWindowMessage {
@@ -54,7 +55,7 @@ pub trait ModalWindowView {
     }
     fn get_config(&self) -> ModalConfig;
     fn content(&self) -> Element<'_, ModalWindowMessage>;
-    fn update(&mut self, message: ModalWindowMessage) -> Task<Message>;
+    fn update(&mut self, message: ModalWindowMessage, module: Option<&mut ModuleWidget>) -> Task<Message>;
 
     fn draw(&self, dark_mode: bool) -> Element<'_, Message> {
         self.modal_window_view(dark_mode)

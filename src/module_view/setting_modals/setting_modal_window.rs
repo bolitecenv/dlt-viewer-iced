@@ -38,8 +38,8 @@ impl From<ModalWindowMessage> for SettingModalMessage {
 pub trait SettingModal : ModalWindowView {
     fn get_id(&self) -> u32;
     fn get_config(&self) -> ModalConfig;
-    fn update_setting_modal(&mut self, message: SettingModalMessage, module: &mut ModuleWidget) -> Task<Message>;
     fn setting_content(&self) -> Element<'_, SettingModalMessage>;
+    fn update(&mut self, message: SettingModalMessage, module: Option<&mut ModuleWidget>) -> Task<Message>;
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
@@ -56,9 +56,8 @@ impl<T: SettingModal> ModalWindowView for T {
         <Self as SettingModal>::setting_content(self).map(ModalWindowMessage::from)
     }
 
-    fn update(&mut self, _message: ModalWindowMessage) -> Task<Message> {
-        println!("ModalWindowView::update called directly, which is not supported.");
-        Task::none()
+    fn update(&mut self, _message: ModalWindowMessage, _module: Option<&mut ModuleWidget>) -> Task<Message> {
+        <Self as SettingModal>::update(self, SettingModalMessage::from(_message), _module)
     }
 
     fn as_any(&self) -> &dyn Any {

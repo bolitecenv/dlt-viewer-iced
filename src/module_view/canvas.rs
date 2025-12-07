@@ -21,7 +21,7 @@ pub const SNAP_THRESHOLD: f32 = 10.0;
 pub struct ModuleCanvas {
     pub module_widget: HashMap<usize, ModuleWidget>,
     pub dark_mode: bool,
-    pub context_menu: Option<ContextMenu>,
+    pub circular_context_menu: Option<CircularContextMenu>,
     pub selected_module: Option<usize>,  // Track which module is selected
     pub hovered_module: Option<usize>,   // Track which module is hovered
     pub resize_module: Option<(usize, ResizeType)>, // Track which module is being resized
@@ -47,7 +47,7 @@ pub enum ModuleCanvasMessage {
 }
 
 #[derive(Debug, Clone)]
-pub struct ContextMenu {
+pub struct CircularContextMenu {
     pub position: Point,
     pub items: Vec<ContextMenuItem>,
     pub target_module: Option<usize>,  // Which module this menu is for
@@ -105,7 +105,7 @@ impl ModuleCanvas {
         Self {
             module_widget: HashMap::new(),
             dark_mode: false,
-            context_menu: None,
+            circular_context_menu: None,
             selected_module: None,
             hovered_module: None,
             resize_module: None,
@@ -119,7 +119,7 @@ impl ModuleCanvas {
                 println!("Add Chart action triggered");
                 
                 // Create new chart at context menu position
-                if let Some(menu) = &self.context_menu {
+                if let Some(menu) = &self.circular_context_menu {
                     let chart_widget = ChartWidget::new(self.dark_mode, ChartSettings {
                         show_grid: true,
                         show_legend: true,
@@ -137,7 +137,7 @@ impl ModuleCanvas {
                     self.module_widget.insert(new_id, module_widget);
                 }
 
-                self.context_menu = None;
+                self.circular_context_menu = None;
             }
             ModuleCanvasMessage::AddGanttChart => {
                 println!("Add Gantt Chart action triggered");
@@ -147,24 +147,24 @@ impl ModuleCanvas {
                     )
                 );
 
-                self.context_menu = None;
+                self.circular_context_menu = None;
             }
             ModuleCanvasMessage::Delete => {
                 println!("Delete action triggered");
-                if let Some(menu) = &self.context_menu {
+                if let Some(menu) = &self.circular_context_menu {
                     if let Some(module_id) = menu.target_module {
                         self.module_widget.remove(&module_id);
                     }
                 }
-                self.context_menu = None;
+                self.circular_context_menu = None;
             }
             ModuleCanvasMessage::Duplicate => {
                 println!("Duplicate action triggered");
-                self.context_menu = None;
+                self.circular_context_menu = None;
             }
             ModuleCanvasMessage::Settings => {
                 println!("Settings action triggered");
-                if let Some(menu) = &self.context_menu {
+                if let Some(menu) = &self.circular_context_menu {
                     if let Some(module_id) = menu.target_module {
                         println!("Opening settings for module: {}", module_id);
                         let mut module = self.module_widget.get_mut(&module_id);
@@ -190,7 +190,7 @@ impl ModuleCanvas {
 
                     }
                 }
-                self.context_menu = None;
+                self.circular_context_menu = None;
             }
             ModuleCanvasMessage::Move(position) => {
                 // Update hovered module
@@ -231,7 +231,7 @@ impl ModuleCanvas {
                     }
                 }
 
-                if self.context_menu.is_none() {
+                if self.circular_context_menu.is_none() {
                         if self.state.right_mouse_button.is_pressed {
                         // Potentially handle right-drag actions
                         
@@ -242,7 +242,7 @@ impl ModuleCanvas {
                         });
                         if drag_distance > 10.0 {
                             let target_module = self.get_module_at_position(position);
-                            self.context_menu = Some(ContextMenu::new(position, target_module));
+                            self.circular_context_menu = Some(CircularContextMenu::new(position, target_module));
                         }
                     }
                 }
@@ -256,11 +256,11 @@ impl ModuleCanvas {
                 
                 // Determine which module was right-clicked
                 let target_module = self.get_module_at_position(position);
-                
-                self.context_menu = Some(ContextMenu::new(position, target_module));
+
+                self.circular_context_menu = Some(CircularContextMenu::new(position, target_module));
             }
             ModuleCanvasMessage::CloseContextMenu => {
-                self.context_menu = None;
+                self.circular_context_menu = None;
             }
             ModuleCanvasMessage::SelectModule(module_id) => {
                 self.selected_module = module_id;
@@ -268,11 +268,11 @@ impl ModuleCanvas {
             }
 
             // Handle mouse button messages
-                ModuleCanvasMessage::RightMouseReleased(_position) => {
+            ModuleCanvasMessage::RightMouseReleased(_position) => {
                 // Handle right mouse button release if needed
                 self.state.right_mouse_button.is_pressed = false;
 
-                if let Some(menu) = &self.context_menu {
+                if let Some(menu) = &self.circular_context_menu {
                     if let Some(action) = menu.get_action_at(_position, 90.0) {
                         let message = match action {
                             ContextMenuAction::AddChart => ModuleCanvasMessage::AddChart,
@@ -287,7 +287,9 @@ impl ModuleCanvas {
                         return Task::none();
                     }
 
-                    self.context_menu = None;
+                    self.circular_context_menu = None;
+                }else{
+
                 }
             }
             ModuleCanvasMessage::RightMousePressed(_position) => {
@@ -405,7 +407,7 @@ impl ModuleCanvas {
     }
 }
 
-impl ContextMenu {
+impl CircularContextMenu {
     pub fn new(position: Point, target_module: Option<usize>) -> Self {
         let mut items = vec![
             ContextMenuItem {
@@ -508,7 +510,7 @@ impl canvas::Program<Message> for ModuleCanvas {
         let cursor_position = cursor.position_in(bounds);
 
         // Draw context menu if present
-        if let Some(menu) = &self.context_menu {
+        if let Some(menu) = &self.circular_context_menu {
             draw_context_menu(&mut frame, menu, cursor_position, self.dark_mode);
         }
 
@@ -603,9 +605,9 @@ impl canvas::Program<Message> for ModuleCanvas {
                     return mouse::Interaction::Grab;
                 }
             }
-            
-            // Show pointer when hovering context menu
-            if let Some(menu) = &self.context_menu {
+
+            // Show pointer when hovering circular context menu
+            if let Some(menu) = &self.circular_context_menu {
                 if menu.get_action_at(position, 90.0).is_some() {
                     return mouse::Interaction::Pointer;
                 }
@@ -644,7 +646,7 @@ impl canvas::Program<Message> for ModuleCanvas {
 // Helper function to draw the context menu
 pub fn draw_context_menu(
     frame: &mut canvas::Frame,
-    menu: &ContextMenu,
+    menu: &CircularContextMenu,
     cursor_position: Option<Point>,
     dark_mode: bool,
 ) {
