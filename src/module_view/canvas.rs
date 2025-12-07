@@ -10,11 +10,17 @@ use crate::module_view::circular_context_menu::CircularContextMenuAction;
 use crate::module_view::circular_context_menu::CircularContextMenuItem;
 use crate::module_view::circular_context_menu::draw_circular_context_menu;
 use crate::module_view::context_menu::ContextMenu;
+use crate::module_view::context_menu::ContextMenuAction;
 use crate::module_view::context_menu::draw_context_menu;
+use crate::module_view::meter_widget;
+use crate::module_view::meter_widget::MeterSettings;
+use crate::module_view::meter_widget::MeterWidget;
+use crate::module_view::module_widget;
 use crate::module_view::module_widget::*;
 use crate::module_view::setting_modals::chart_widget_setting_modal::ChartWidgetModal;
 use iced::widget::canvas::{self, Canvas};
 use iced::{Color, Element, Length, Point, Rectangle, Renderer, Size, Task, Theme, keyboard, mouse};
+use iced_aw::context_menu;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -102,24 +108,21 @@ impl ModuleCanvas {
             ModuleCanvasMessage::AddChart => {
                 println!("Add Chart action triggered");
                 
-                // Create new chart at context menu position
-                if let Some(menu) = &self.circular_context_menu {
-                    let chart_widget = ChartWidget::new(self.dark_mode, ChartSettings {
-                        show_grid: true,
-                        show_legend: true,
-                        line_smoothness: 0.5,
-                        x_label: "X-Axis".to_string(),
-                        y_label: "Y-Axis".to_string(),
-                    });
-                    
-                    let new_id = self.module_widget.keys().max().unwrap_or(&0) + 1;
-                    let module_widget = ModuleWidget {
-                        id: new_id,
-                        module_widget: Box::new(chart_widget),
-                        dlt_data_regex_item: None,
-                    };
-                    self.module_widget.insert(new_id, module_widget);
-                }
+                let chart_widget = ChartWidget::new(self.dark_mode, ChartSettings {
+                    show_grid: true,
+                    show_legend: true,
+                    line_smoothness: 0.5,
+                    x_label: "X-Axis".to_string(),
+                    y_label: "Y-Axis".to_string(),
+                });
+                
+                let new_id = self.module_widget.keys().max().unwrap_or(&0) + 1;
+                let module_widget = ModuleWidget {
+                    id: new_id,
+                    module_widget: Box::new(chart_widget),
+                    dlt_data_regex_item: None,
+                };
+                self.module_widget.insert(new_id, module_widget);
 
                 self.circular_context_menu = None;
             }
@@ -130,6 +133,24 @@ impl ModuleCanvas {
                                                 "Gantt Chart has been added successfully.".to_string())
                     )
                 );
+
+                let meter_widget = MeterWidget::new(self.dark_mode, MeterSettings {
+                    min_value: 0.0,
+                    max_value: 100.0,
+                    unit: "%".to_string(),
+                    warning_threshold: Some(75.0),
+                    danger_threshold: Some(90.0),
+                    show_digital_readout: true,
+                    label: "CPU Usage".to_string(),
+                });
+
+                let new_id = self.module_widget.keys().max().unwrap_or(&0) + 1;
+
+                self.module_widget.insert(new_id, ModuleWidget {
+                    id: new_id,
+                    module_widget: Box::new(meter_widget),
+                    dlt_data_regex_item: None,
+                });
 
                 self.circular_context_menu = None;
             }
@@ -289,6 +310,25 @@ impl ModuleCanvas {
             ModuleCanvasMessage::LeftMouseReleased(_position) => {
                 // Handle left mouse button release if needed
                 self.state.left_mouse_button.is_pressed = false;
+
+                if let Some(context_menu) = &self.context_menu {
+                    if let Some(action) = context_menu.get_action_at(_position) {
+                        let message = match action {
+                            ContextMenuAction::AddChart => ModuleCanvasMessage::AddChart,
+                            ContextMenuAction::AddGanttChart => ModuleCanvasMessage::AddGanttChart,
+                            ContextMenuAction::AddInjectionWindow => ModuleCanvasMessage::AddGanttChart, // Placeholder
+                            ContextMenuAction::AddMeterWindow => ModuleCanvasMessage::AddGanttChart, // Placeholder
+                            ContextMenuAction::Delete => ModuleCanvasMessage::Delete,
+                            ContextMenuAction::Duplicate => ModuleCanvasMessage::Duplicate,
+                            ContextMenuAction::Settings => ModuleCanvasMessage::Settings,
+                        };
+
+                        // Handle the action synchronously to avoid sending non-Send types via Task::done
+                        let _ = self.update(message, app_view);
+                    }
+
+                    self.context_menu = None;
+                }
             }
             ModuleCanvasMessage::LeftMousePressed(_position) => {
                 self.state.left_mouse_button.is_pressed = true;

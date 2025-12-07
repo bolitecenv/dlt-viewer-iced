@@ -6,6 +6,7 @@ pub mod module_widget;
 pub mod setting_modals;
 pub mod circular_context_menu;
 pub mod context_menu;
+pub mod meter_widget;
 
 // Re-export commonly used items
 pub use canvas::{ModuleCanvas};
