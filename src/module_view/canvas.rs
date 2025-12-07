@@ -22,6 +22,7 @@ pub struct ModuleCanvas {
     pub module_widget: HashMap<usize, ModuleWidget>,
     pub dark_mode: bool,
     pub circular_context_menu: Option<CircularContextMenu>,
+    pub context_menu: Option<CircularContextMenu>, // NEW: Context menu state
     pub selected_module: Option<usize>,  // Track which module is selected
     pub hovered_module: Option<usize>,   // Track which module is hovered
     pub resize_module: Option<(usize, ResizeType)>, // Track which module is being resized
@@ -49,20 +50,20 @@ pub enum ModuleCanvasMessage {
 #[derive(Debug, Clone)]
 pub struct CircularContextMenu {
     pub position: Point,
-    pub items: Vec<ContextMenuItem>,
+    pub items: Vec<CircularContextMenuItem>,
     pub target_module: Option<usize>,  // Which module this menu is for
 }
 
 #[derive(Debug, Clone)]
-pub struct ContextMenuItem {
+pub struct CircularContextMenuItem {
     pub label: String,
     pub angle_start: f32,
     pub angle_end: f32,
-    pub action: ContextMenuAction,
+    pub action: CircularContextMenuAction,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ContextMenuAction {
+pub enum CircularContextMenuAction {
     AddChart,
     AddGanttChart,
     Delete,
@@ -106,6 +107,7 @@ impl ModuleCanvas {
             module_widget: HashMap::new(),
             dark_mode: false,
             circular_context_menu: None,
+            context_menu: None,
             selected_module: None,
             hovered_module: None,
             resize_module: None,
@@ -275,11 +277,11 @@ impl ModuleCanvas {
                 if let Some(menu) = &self.circular_context_menu {
                     if let Some(action) = menu.get_action_at(_position, 90.0) {
                         let message = match action {
-                            ContextMenuAction::AddChart => ModuleCanvasMessage::AddChart,
-                            ContextMenuAction::AddGanttChart => ModuleCanvasMessage::AddGanttChart,
-                            ContextMenuAction::Delete => ModuleCanvasMessage::Delete,
-                            ContextMenuAction::Duplicate => ModuleCanvasMessage::Duplicate,
-                            ContextMenuAction::Settings => ModuleCanvasMessage::Settings,
+                            CircularContextMenuAction::AddChart => ModuleCanvasMessage::AddChart,
+                            CircularContextMenuAction::AddGanttChart => ModuleCanvasMessage::AddGanttChart,
+                            CircularContextMenuAction::Delete => ModuleCanvasMessage::Delete,
+                            CircularContextMenuAction::Duplicate => ModuleCanvasMessage::Duplicate,
+                            CircularContextMenuAction::Settings => ModuleCanvasMessage::Settings,
                         };
 
                         // Handle the action synchronously to avoid sending non-Send types via Task::done
@@ -410,35 +412,35 @@ impl ModuleCanvas {
 impl CircularContextMenu {
     pub fn new(position: Point, target_module: Option<usize>) -> Self {
         let mut items = vec![
-            ContextMenuItem {
+            CircularContextMenuItem {
                 label: "Add Chart".to_string(),
                 angle_start: 0.0,
                 angle_end: 0.0,
-                action: ContextMenuAction::AddChart,
+                action: CircularContextMenuAction::AddChart,
             },
-            ContextMenuItem {
+            CircularContextMenuItem {
                 label: "Add Gantt Chart".to_string(),
                 angle_start: 0.0,
                 angle_end: 0.0,
-                action: ContextMenuAction::AddGanttChart,
+                action: CircularContextMenuAction::AddGanttChart,
             },
-            ContextMenuItem {
+            CircularContextMenuItem {
                 label: "Delete".to_string(),
                 angle_start: 0.0,
                 angle_end: 0.0,
-                action: ContextMenuAction::Delete,
+                action: CircularContextMenuAction::Delete,
             },
-            ContextMenuItem {
+            CircularContextMenuItem {
                 label: "Duplicate".to_string(),
                 angle_start: 0.0,
                 angle_end: 0.0,
-                action: ContextMenuAction::Duplicate,
+                action: CircularContextMenuAction::Duplicate,
             },
-            ContextMenuItem {
+            CircularContextMenuItem {
                 label: "Settings".to_string(),
                 angle_start: 0.0,
                 angle_end: 0.0,
-                action: ContextMenuAction::Settings,
+                action: CircularContextMenuAction::Settings,
             },
         ];
 
@@ -454,7 +456,7 @@ impl CircularContextMenu {
         Self { position, items, target_module }
     }
 
-    pub fn get_action_at(&self, point: Point, radius: f32) -> Option<ContextMenuAction> {
+    pub fn get_action_at(&self, point: Point, radius: f32) -> Option<CircularContextMenuAction> {
         let dx = point.x - self.position.x;
         let dy = point.y - self.position.y;
 

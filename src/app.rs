@@ -5,13 +5,9 @@ use crate::components::tcp_handler::{apply_ecu_updates, tcp_connection_subscript
 
 use crate::components::{navigation, top_bar};
 use crate::message::{Message, Page};
-use crate::module_view::setting_modals::chart_widget_setting_modal::ChartWidgetModal;
-use crate::module_view::setting_modals::setting_modal_window::SettingModal;
-use crate::module_view::{self, ModuleCanvas};
-use crate::module_view::canvas::{ContextMenuAction, ModuleCanvasMessage}; // NEW: Add context menu imports
+use crate::module_view::ModuleCanvas;
 
 use crate::modal_window::modal_window::*;
-use crate::modal_window::confirm_modal_window::*;
 
 use crate::pages::ecu_setting::{EcuListView, EcuSelection};
 use crate::pages::{self};
@@ -22,9 +18,8 @@ use crate::types::{FrontDltAppIdItem, FrontDltEcuItem};
 use crate::message::ConnectionEvent;
 use iced::futures::{self};
 use iced::widget::stack;
-use iced::window::drag;
 use iced::{
-    Color, Font, Point, Size,
+    Font, Point, Size,
     font::{Family, Stretch, Style, Weight},
 };
 use iced::{

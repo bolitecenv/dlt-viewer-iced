@@ -5,7 +5,6 @@ use crate::module_view::canvas::{ModuleCanvasMessage};
 use crate::module_view::setting_modals::setting_modal_window::SettingModalMessage;
 use crate::plugin::PluginMessage;
 use crate::{
-    module_view::{ModuleWidget, canvas::ContextMenuAction},
     pages::table::DltMessageRow,
 };
 use iced::Point;
