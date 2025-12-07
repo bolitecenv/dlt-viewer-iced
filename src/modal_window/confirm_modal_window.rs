@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use crate::app::ICON_FONT;
 use crate::modal_window::modal_window::{ModalConfig, ModalWindowMessage, ModalWindowView, deserialize_message, serialize_message};
 use crate::message::Message;
@@ -95,5 +97,13 @@ impl ModalWindowView for ConfirmModal {
             _ => {},
         }
         Task::none()
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }

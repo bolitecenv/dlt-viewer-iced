@@ -48,6 +48,7 @@ impl Clone for ModuleWidget {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct ModuleWidgetWindow {
     pub position: Point,
     pub size: Size,

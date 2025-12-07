@@ -2,6 +2,7 @@ use crate::components::tcp_handler::EcuUpdateInfo;
 use crate::modal_window::modal_window::ModalWindowMessage;
 use crate::module_view::ModuleCanvas;
 use crate::module_view::canvas::{ModuleCanvasMessage};
+use crate::module_view::setting_modals::setting_modal_window::SettingModalMessage;
 use crate::plugin::PluginMessage;
 use crate::{
     module_view::{ModuleWidget, canvas::ContextMenuAction},

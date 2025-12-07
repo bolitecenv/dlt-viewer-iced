@@ -5,6 +5,8 @@ use crate::components::tcp_handler::{apply_ecu_updates, tcp_connection_subscript
 
 use crate::components::{navigation, top_bar};
 use crate::message::{Message, Page};
+use crate::module_view::setting_modals::chart_widget_setting_modal::ChartWidgetModal;
+use crate::module_view::setting_modals::setting_modal_window::SettingModal;
 use crate::module_view::{self, ModuleCanvas};
 use crate::module_view::canvas::{ContextMenu, ContextMenuAction, ModuleCanvasMessage}; // NEW: Add context menu imports
 
@@ -268,7 +270,23 @@ impl Dashboard {
             },
             Message::ModalWindowMessage(content) => {
                 if let Some(modal) = &mut self.modal_window {
-                    let task = modal.update(content);
+                    let mut task: Task<Message> = Task::none();
+                    if let Some(ref_id) = modal.get_id() {
+                        println!("Modal ID: {}", ref_id);
+                        
+                        // Get mutable reference to the widget
+                        let widget = self.module_canvas.module_widget.get_mut(&(ref_id as usize));
+
+                        // Downcast to ChartWidgetModal
+                        if let Some(setting_modal) = modal.as_any_mut().downcast_mut::<ChartWidgetModal>() {
+                            task = setting_modal.update_setting_modal(
+                                content.into(),
+                                widget.unwrap(),
+                            );
+                        }
+                    } else {
+                        task = modal.update(content);
+                    }
                     return task;
                 }
             },

@@ -1,3 +1,4 @@
+use crate::components::dlt_data_manager::DltDataRegexItem;
 use crate::message::Message;
 use crate::modal_window::confirm_modal_window::ConfirmModal;
 use crate::modal_window::modal_window::ModalWindowView;
@@ -5,6 +6,7 @@ use crate::module_view::ChartWidget;
 use crate::module_view::ModuleWidget;
 use crate::module_view::chart_widget::ChartSettings;
 use crate::module_view::module_widget::*;
+use crate::module_view::setting_modals::chart_widget_setting_modal::ChartWidgetModal;
 use iced::widget::canvas::{self, Canvas};
 use iced::{Color, Element, Length, Point, Rectangle, Renderer, Size, Task, Theme, keyboard, mouse};
 use std::collections::HashMap;
@@ -139,10 +141,11 @@ impl ModuleCanvas {
             }
             ModuleCanvasMessage::AddGanttChart => {
                 println!("Add Gantt Chart action triggered");
-                app_view.replace(Box::new(ConfirmModal::new("Gantt Chart Added".to_string(),
-                                                              "Gantt Chart has been added successfully.".to_string())
-                ));
-
+                app_view.replace(
+                    Box::new(ConfirmModal::new("Gantt Chart Added".to_string(),
+                                                "Gantt Chart has been added successfully.".to_string())
+                    )
+                );
 
                 self.context_menu = None;
             }
@@ -164,7 +167,27 @@ impl ModuleCanvas {
                 if let Some(menu) = &self.context_menu {
                     if let Some(module_id) = menu.target_module {
                         println!("Opening settings for module: {}", module_id);
-                        // TODO: Open settings panel for this module
+                        let mut module = self.module_widget.get_mut(&module_id);
+
+                        if let Some(module) = module {
+                            if let Some(chart_widget) = module.module_widget.as_any_mut().downcast_mut::<ChartWidget>() {
+                                let regex_item = module.dlt_data_regex_item.clone().unwrap_or(DltDataRegexItem {
+                                    regex: "".to_string(),
+                                    id: 0,
+                                    description: "todo".to_string(),
+                                });
+                                // Clone the chart widget so the modal owns its copy and doesn't borrow from self
+                                app_view.replace(
+                                    Box::new(ChartWidgetModal::new(
+                                        module_id as u32,
+                                        format!("Chart Settings - {}", module_id),
+                                        regex_item,
+                                        chart_widget.clone(),
+                                    ))
+                                );
+                            }
+                        }
+
                     }
                 }
                 self.context_menu = None;

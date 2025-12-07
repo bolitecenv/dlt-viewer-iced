@@ -3,7 +3,7 @@
 pub mod canvas;
 pub mod chart_widget;
 pub mod module_widget;
-// pub mod ganttchart_renderer;
+pub mod setting_modals;
 
 // Re-export commonly used items
 pub use canvas::{ModuleCanvas};

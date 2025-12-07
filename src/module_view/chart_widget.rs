@@ -5,6 +5,7 @@ use iced::widget::canvas;
 use iced::{Color, Point, Rectangle, Size};
 use std::any::Any;
 
+#[derive(Clone)]
 pub struct ChartSettings {
     pub show_grid: bool,
     pub show_legend: bool,
@@ -19,6 +20,7 @@ pub struct ChartData {
     pub y_value: f32,
 }
 
+#[derive(Clone)]
 pub struct ChartWidget {
     pub window: ModuleWidgetWindow,
     pub settings: ChartSettings,

@@ -1,3 +1,6 @@
+use std::any::Any;
+use std::option;
+
 use bincode::{
     Decode, Encode,
 };use iced::Task;
@@ -46,6 +49,9 @@ impl Default for ModalConfig {
 }
 
 pub trait ModalWindowView {
+    fn get_id(&self) -> Option<u32> {
+        None
+    }
     fn get_config(&self) -> ModalConfig;
     fn content(&self) -> Element<'_, ModalWindowMessage>;
     fn update(&mut self, message: ModalWindowMessage) -> Task<Message>;
@@ -212,6 +218,9 @@ pub trait ModalWindowView {
             )
         ).into()
     }
+
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 
