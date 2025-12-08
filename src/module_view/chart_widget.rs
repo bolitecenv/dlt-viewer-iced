@@ -1,10 +1,8 @@
-use crate::components::dlt_data_manager::DltDataRegexItem;
 use crate::module_view::module_widget::{
-    MIN_CHART_HEIGHT, MIN_CHART_WIDTH, ModuleWidget, ModuleWidgetWindow, ModuleWidgetWindowView, WidgetData
+    MIN_CHART_HEIGHT, MIN_CHART_WIDTH, ModuleWidgetWindow, ModuleWidgetWindowView, WidgetData
 };
 use iced::widget::canvas;
 use iced::{Color, Point, Rectangle, Size};
-use regex::Regex;
 use std::any::Any;
 
 #[derive(Clone)]
@@ -25,10 +23,13 @@ pub struct ChartData {
 #[derive(Clone)]
 pub struct ChartWidget {
     pub window: ModuleWidgetWindow,
-    pub dlt_data_regex_item: Option<DltDataRegexItem>,
     pub settings: ChartSettings,
     pub datas: Vec<ChartData>,
     pub dark_mode: bool,
+    pub pan_offset_x: f32,
+    pub pan_offset_y: f32,
+    pub zoom_x: f32,
+    pub zoom_y: f32,
 }
 
 impl ModuleWidgetWindowView for ChartWidget {
@@ -42,7 +43,7 @@ impl ModuleWidgetWindowView for ChartWidget {
 
     fn draw(&self, frame: &mut canvas::Frame) {
         // Call the draw_chart function with proper parameters
-        draw_chart_impl(frame, self, self.window.position, self.window.size, None);
+        draw_chart_impl(frame, self, self.window.position, self.window.size);
     }
     fn clone_box(&self) -> Box<dyn ModuleWidgetWindowView> {
         Box::new(ChartWidget {
@@ -55,7 +56,6 @@ impl ModuleWidgetWindowView for ChartWidget {
                 title: self.window.title.clone(),
                 subtitle: self.window.subtitle.clone(),
             },
-            dlt_data_regex_item: None,
             settings: ChartSettings {
                 show_grid: self.settings.show_grid,
                 show_legend: self.settings.show_legend,
@@ -65,6 +65,10 @@ impl ModuleWidgetWindowView for ChartWidget {
             },
             datas: self.datas.clone(),
             dark_mode: self.dark_mode,
+            pan_offset_x: self.pan_offset_x,
+            pan_offset_y: self.pan_offset_y,
+            zoom_x: self.zoom_x,
+            zoom_y: self.zoom_y,
         })
     }
 
@@ -90,8 +94,36 @@ impl ChartWidget {
             settings,
             datas: Vec::new(),
             window: ModuleWidgetWindow::default(),
-            dlt_data_regex_item: None,
+            pan_offset_x: 0.0,
+            pan_offset_y: 0.0,
+            zoom_x: 1.0,
+            zoom_y: 1.0,
         }
+    }
+
+    pub fn pan(&mut self, delta_x: f32, delta_y: f32) {
+        self.pan_offset_x += delta_x;
+        self.pan_offset_y += delta_y;
+    }
+
+    pub fn zoom(&mut self, delta: f32, zoom_x: bool, zoom_y: bool) {
+        let zoom_factor = if delta > 0.0 { 1.1 } else { 0.9 };
+        
+        if zoom_x {
+            self.zoom_x *= zoom_factor;
+            self.zoom_x = self.zoom_x.clamp(0.1, 10.0);
+        }
+        if zoom_y {
+            self.zoom_y *= zoom_factor;
+            self.zoom_y = self.zoom_y.clamp(0.1, 10.0);
+        }
+    }
+
+    pub fn reset_view(&mut self) {
+        self.pan_offset_x = 0.0;
+        self.pan_offset_y = 0.0;
+        self.zoom_x = 1.0;
+        self.zoom_y = 1.0;
     }
 
     fn draw_line_chart(
@@ -185,11 +217,18 @@ impl ChartWidget {
         let min_x = x_values.iter().cloned().fold(f32::MAX, f32::min);
         let x_range = max_x - min_x;
 
-        // For this version, no zoom/pan - use full range
-        let y_min_visible = min_y;
-        let y_max_visible = max_y;
-        let x_min_visible = min_x;
-        let x_max_visible = max_x;
+        // Apply zoom and pan to calculate visible range
+        let x_visible_range = x_range / self.zoom_x;
+        let y_visible_range = y_range / self.zoom_y;
+
+        // Calculate center of the view based on pan offset
+        let x_center = (min_x + max_x) / 2.0 - self.pan_offset_x;
+        let y_center = (min_y + max_y) / 2.0 - self.pan_offset_y;
+
+        let x_min_visible = x_center - x_visible_range / 2.0;
+        let x_max_visible = x_center + x_visible_range / 2.0;
+        let y_min_visible = y_center - y_visible_range / 2.0;
+        let y_max_visible = y_center + y_visible_range / 2.0;
 
         // Draw Y-axis tick labels
         let num_y_labels = 5;
@@ -276,8 +315,7 @@ fn draw_chart_impl(
     frame: &mut canvas::Frame,
     chart_widget: &ChartWidget,
     position: Point,
-    size: Size,
-    cursor_position: Option<Point>,
+    size: Size
 ) {
     // Ensure chart stays within bounds
     let safe_width = size.width.max(MIN_CHART_WIDTH);
