@@ -4,28 +4,16 @@ use crate::modal_window::confirm_modal_window::ConfirmModal;
 use crate::modal_window::modal_window::ModalWindowView;
 use crate::module_view::ChartWidget;
 use crate::module_view::ModuleWidget;
-use crate::module_view::chart_widget::ChartData;
-use crate::module_view::chart_widget::ChartSettings;
-use crate::module_view::circular_context_menu::CircularContextMenu;
-use crate::module_view::circular_context_menu::CircularContextMenuAction;
-use crate::module_view::circular_context_menu::CircularContextMenuItem;
-use crate::module_view::circular_context_menu::draw_circular_context_menu;
-use crate::module_view::context_menu::ContextMenu;
-use crate::module_view::context_menu::ContextMenuAction;
-use crate::module_view::context_menu::draw_context_menu;
-use crate::module_view::meter_widget;
+use crate::module_view::chart_widget::{ChartData, ChartSettings};
+use crate::module_view::circular_context_menu::*;
+use crate::module_view::context_menu::*;
 use crate::module_view::meter_widget::MeterSettings;
 use crate::module_view::meter_widget::MeterWidget;
-use crate::module_view::module_widget;
 use crate::module_view::module_widget::*;
 use crate::module_view::setting_modals::chart_widget_setting_modal::ChartWidgetModal;
 use iced::widget::canvas::{self, Canvas};
 use iced::{Color, Element, Length, Point, Rectangle, Renderer, Size, Task, Theme, keyboard, mouse};
-use iced_aw::context_menu;
 use std::collections::HashMap;
-use std::sync::Arc;
-use std::sync::Mutex;
-use std::sync::mpsc::channel;
 
 pub const GRID_SIZE: f32 = 50.0;
 pub const SNAP_THRESHOLD: f32 = 10.0;
@@ -42,6 +30,7 @@ pub struct ModuleCanvas {
     pub panning_chart: Option<usize>,  // Track which chart is being panned
     pub state: CanvasState,
     pub shift_pressed: bool,  // Track Shift key state
+    pub draw_grid: bool,  // Whether to draw the grid
 }
 
 #[derive(Debug, Clone)]
@@ -52,10 +41,6 @@ pub enum ModuleCanvasMessage {
     Duplicate,
     Settings,
     Move(Point),
-    Resize,
-    ShowContextMenu(Point),
-    CloseContextMenu,
-    SelectModule(Option<usize>),
     RightMouseReleased(Point),
     RightMousePressed(Point),
     LeftMouseReleased(Point),
@@ -109,6 +94,7 @@ impl ModuleCanvas {
             panning_chart: None,
             state: CanvasState::default(),
             shift_pressed: false,
+            draw_grid: false,
         }
     }
 
@@ -116,14 +102,8 @@ impl ModuleCanvas {
         match message {
             ModuleCanvasMessage::AddChart => {
                 println!("Add Chart action triggered");
-                
-                let mut chart_widget = ChartWidget::new(self.dark_mode, ChartSettings {
-                    show_grid: true,
-                    show_legend: true,
-                    line_smoothness: 0.5,
-                    x_label: "X-Axis".to_string(),
-                    y_label: "Y-Axis".to_string(),
-                });
+
+                let mut chart_widget = ChartWidget::new(self.dark_mode, ChartSettings::default());
 
                 // Add random data for testing
                 for i in 0..50 {
@@ -193,7 +173,7 @@ impl ModuleCanvas {
                 if let Some(menu) = &self.circular_context_menu {
                     if let Some(module_id) = menu.target_module {
                         println!("Opening settings for module: {}", module_id);
-                        let mut module = self.module_widget.get_mut(&module_id);
+                        let module = self.module_widget.get_mut(&module_id);
 
                         if let Some(module) = module {
                             if let Some(chart_widget) = module.module_widget.as_any_mut().downcast_mut::<ChartWidget>() {
@@ -296,24 +276,6 @@ impl ModuleCanvas {
                     }
                 }
                 
-            }
-            ModuleCanvasMessage::Resize => {
-                println!("Resize action triggered");
-            }
-            ModuleCanvasMessage::ShowContextMenu(position) => {
-                println!("Show context menu at position: {:?}", position);
-                
-                // Determine which module was right-clicked
-                let target_module = self.get_module_at_position(position);
-
-                self.circular_context_menu = Some(CircularContextMenu::new(position, target_module));
-            }
-            ModuleCanvasMessage::CloseContextMenu => {
-                self.circular_context_menu = None;
-            }
-            ModuleCanvasMessage::SelectModule(module_id) => {
-                self.selected_module = module_id;
-                println!("Selected module: {:?}", module_id);
             }
             ModuleCanvasMessage::MouseWheel(delta, position) => {
                 // Handle zoom when hovering over a chart
@@ -440,7 +402,7 @@ impl ModuleCanvas {
         Task::none()
     }
 
-    pub fn view(&self, dark_mode: bool) -> Element<'_, Message> {
+    pub fn view(&self, _dark_mode: bool) -> Element<'_, Message> {
         Canvas::new(self)
             .width(Length::Fill)
             .height(Length::Fill)
@@ -544,7 +506,9 @@ impl canvas::Program<Message> for ModuleCanvas {
         frame.fill_rectangle(Point::ORIGIN, bounds.size(), bg_color);
 
         // Draw grid
-        // self.draw_grid(&mut frame, bounds);
+        if self.draw_grid {
+            self.draw_grid(&mut frame, bounds);
+        }
 
         self.draw_modules(&mut frame);
 
@@ -703,7 +667,7 @@ impl canvas::Program<Message> for ModuleCanvas {
                 }
             }
 
-            if let Some((id, resize_type)) = self.get_module_resize_at_position(position) {
+            if let Some((_, resize_type)) = self.get_module_resize_at_position(position) {
                 match resize_type {
                     ResizeType::Left => {
                         // Show left resize cursor

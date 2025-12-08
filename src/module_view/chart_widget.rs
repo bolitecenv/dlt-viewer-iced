@@ -32,6 +32,18 @@ pub struct ChartWidget {
     pub zoom_y: f32,
 }
 
+impl Default for ChartSettings {
+    fn default() -> Self {
+        Self {
+            show_grid: true,
+            show_legend: true,
+            line_smoothness: 0.5,
+            x_label: String::from("X-Axis"),
+            y_label: String::from("Y-Axis"),
+        }
+    }
+}
+
 impl ModuleWidgetWindowView for ChartWidget {
     fn get_window(&self) -> &ModuleWidgetWindow {
         &self.window
