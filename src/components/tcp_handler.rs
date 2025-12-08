@@ -10,7 +10,7 @@ use dlt_format_parser::{
     ServiceParser, ServiceResponse, ServiceResult, ServiceSetLogLevelRequest, 
     ServiceSetTraceStatusRequest, find_next_dlt_header
 };
-use iced::{Subscription, Task};
+use iced::Subscription;
 use tokio::net::TcpStream;
 use tokio::time::sleep;
 use crate::message::ConnectionEvent;

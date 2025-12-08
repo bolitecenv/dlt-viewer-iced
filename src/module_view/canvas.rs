@@ -117,10 +117,15 @@ impl ModuleCanvas {
                 });
                 
                 let new_id = self.module_widget.keys().max().unwrap_or(&0) + 1;
+                let dlt_data_regex_item = DltDataRegexItem {
+                    regex: ".*".to_string(),
+                    id: new_id as usize,
+                    description: "Default Regex".to_string(),
+                };
                 let module_widget = ModuleWidget {
                     id: new_id,
                     module_widget: Box::new(chart_widget),
-                    dlt_data_regex_item: None,
+                    dlt_data_regex_item: Some(dlt_data_regex_item),
                 };
                 self.module_widget.insert(new_id, module_widget);
 

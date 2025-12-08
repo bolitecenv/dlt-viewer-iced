@@ -147,8 +147,13 @@ impl SettingModal for ChartWidgetModal {
                 println!("Confirmed");
                 println!("Module ID: {}", module.as_ref().map_or(0, |m| m.id));
 
-                if let Some(chart_widget) = module.and_then(|m| m.module_widget.as_any_mut().downcast_mut::<ChartWidget>()) {
-                    *chart_widget = self.chart_widget.clone();
+                if let Some(m) = module {
+                    if let Some(chart_widget) = m.module_widget.as_any_mut().downcast_mut::<ChartWidget>() {
+                        *chart_widget = self.chart_widget.clone();
+                    }
+                    if let Some(dlt_data_regex_item) = m.dlt_data_regex_item.as_mut() {
+                        *dlt_data_regex_item = self.regex_item.clone();
+                    }
                 }
                 return Task::done(Message::CloseSettingsModal);
             }

@@ -168,6 +168,18 @@ impl Dashboard {
                 self.ecu_list_view.set_ecu_list(self.ecu_list.clone());
             }
 
+            Message::BatchUpdate {
+                dlt_messages,
+                ecu_updates,
+            } => {
+                self.process_dlt_messages(dlt_messages);
+
+                // 2. Apply ECU updates
+                apply_ecu_updates(&mut self.ecu_list, ecu_updates);
+                self.ecu_list_view.set_ecu_list(self.ecu_list.clone());
+
+            }
+
             Message::SelectApp(ecu_id, app_id) => {
                 self.ecu_list_view
                     .toggle_app(ecu_id.clone(), app_id.clone());
@@ -388,6 +400,10 @@ impl Dashboard {
             .unwrap_or(0)
     }
 
+    fn add_regex_item(&mut self, item: DltDataRegexItem) {
+        self.regex_items.push(item);
+    }
+
     fn process_dlt_messages(&mut self, mut messages: Vec<DltMessageRow>) {
         println!("Received {} DLT messages", messages.len());
         if self.messages.len() > self.max_messages {
@@ -395,9 +411,25 @@ impl Dashboard {
             self.messages.drain(0..excess);
         }
 
+
+        for row in &messages {
+            let canvas_widgets = self.module_canvas.module_widget.values_mut();
+            for widget in canvas_widgets {
+                if let Some(dlt_regex_item) = &mut widget.dlt_data_regex_item {
+                    let regex = Regex::new(&dlt_regex_item.regex).unwrap();
+                    if regex.is_match(&row.payload) {
+                        // Here you can handle the matched message as needed
+                        println!("Message matched regex {}: {}", dlt_regex_item.regex, row.payload);
+                    }
+                }
+            }
+        }
+
+        for row in &mut messages {
+            row.index = self.message_id_counter;
+            self.message_id_counter += 1;
+            self.messages.push(row.clone());
+        }
     }
 
-    fn add_regex_item(&mut self, item: DltDataRegexItem) {
-        self.regex_items.push(item);
-    }
 }
