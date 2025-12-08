@@ -1,8 +1,10 @@
+use crate::components::dlt_data_manager::DltDataRegexItem;
 use crate::module_view::module_widget::{
-    MIN_CHART_HEIGHT, MIN_CHART_WIDTH, ModuleWidget, ModuleWidgetWindow, ModuleWidgetWindowView,
+    MIN_CHART_HEIGHT, MIN_CHART_WIDTH, ModuleWidget, ModuleWidgetWindow, ModuleWidgetWindowView, WidgetData
 };
 use iced::widget::canvas;
 use iced::{Color, Point, Rectangle, Size};
+use regex::Regex;
 use std::any::Any;
 
 #[derive(Clone)]
@@ -14,7 +16,7 @@ pub struct ChartSettings {
     pub y_label: String,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ChartData {
     pub x_value: f32,
     pub y_value: f32,
@@ -23,6 +25,7 @@ pub struct ChartData {
 #[derive(Clone)]
 pub struct ChartWidget {
     pub window: ModuleWidgetWindow,
+    pub dlt_data_regex_item: Option<DltDataRegexItem>,
     pub settings: ChartSettings,
     pub datas: Vec<ChartData>,
     pub dark_mode: bool,
@@ -52,6 +55,7 @@ impl ModuleWidgetWindowView for ChartWidget {
                 title: self.window.title.clone(),
                 subtitle: self.window.subtitle.clone(),
             },
+            dlt_data_regex_item: None,
             settings: ChartSettings {
                 show_grid: self.settings.show_grid,
                 show_legend: self.settings.show_legend,
@@ -71,6 +75,11 @@ impl ModuleWidgetWindowView for ChartWidget {
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
+
+    fn add_new_data_item(&mut self, data: &WidgetData) {
+        let WidgetData::Chart(chart_data) = data;
+        self.datas.push(chart_data.clone());
+    }
 }
 
 
@@ -81,6 +90,7 @@ impl ChartWidget {
             settings,
             datas: Vec::new(),
             window: ModuleWidgetWindow::default(),
+            dlt_data_regex_item: None,
         }
     }
 
@@ -118,6 +128,47 @@ impl ChartWidget {
                 .with_width(2.0),
         );
 
+        // Define label color (used for both axis labels and tick labels)
+        let label_color = if self.dark_mode {
+            Color::from_rgb(0.8, 0.8, 0.8)
+        } else {
+            Color::from_rgb(0.3, 0.3, 0.3)
+        };
+
+        // Draw Y-axis label (rotated 90 degrees counter-clockwise)
+        if !self.settings.y_label.is_empty() {
+            frame.with_save(|frame| {
+                let label_x = area.x + 5.0;  // Position it closer to the left edge
+                let label_y = area.y + padding + chart_height / 2.0;
+
+                frame.translate(iced::Vector::new(label_x, label_y));
+                frame.rotate(-std::f32::consts::FRAC_PI_2);
+
+                frame.fill_text(canvas::Text {
+                    content: self.settings.y_label.clone(),
+                    position: Point::new(0.0, 0.0),  // Center at rotation point
+                    color: label_color,
+                    size: 14.0.into(),
+                    ..canvas::Text::default()
+                });
+            });
+        }
+
+        // Draw X-axis label (centered below the axis)
+        if !self.settings.x_label.is_empty() {
+            let x_label_width = self.settings.x_label.len() as f32 * 7.0; // Approximate text width
+            frame.fill_text(canvas::Text {
+                content: self.settings.x_label.clone(),
+                position: Point::new(
+                    area.x + padding + (chart_width - x_label_width) / 2.0,
+                    area.y + area.height - 5.0,
+                ),
+                color: label_color,
+                size: 14.0.into(),
+                ..canvas::Text::default()
+            });
+        }
+
         if chart_data.is_empty() {
             return;
         }
@@ -140,13 +191,7 @@ impl ChartWidget {
         let x_min_visible = min_x;
         let x_max_visible = max_x;
 
-        // Draw Y-axis labels
-        let label_color = if self.dark_mode {
-            Color::from_rgb(0.8, 0.8, 0.8)
-        } else {
-            Color::from_rgb(0.3, 0.3, 0.3)
-        };
-
+        // Draw Y-axis tick labels
         let num_y_labels = 5;
         for i in 0..=num_y_labels {
             let ratio = i as f32 / num_y_labels as f32;
@@ -162,26 +207,7 @@ impl ChartWidget {
             });
         }
 
-        // Draw Y-axis label (rotated 90 degrees counter-clockwise)
-        if !self.settings.y_label.is_empty() {
-            frame.with_save(|frame| {
-                let label_x = area.x - 15.0;
-                let label_y = area.y + padding + chart_height / 2.0;
-
-                frame.translate(iced::Vector::new(label_x, label_y));
-                frame.rotate(-std::f32::consts::FRAC_PI_2);
-
-                frame.fill_text(canvas::Text {
-                    content: self.settings.y_label.clone(),
-                    position: Point::new(-20.0, 0.0),
-                    color: label_color,
-                    size: 14.0.into(),
-                    ..canvas::Text::default()
-                });
-            });
-        }
-
-        // Draw X-axis labels
+        // Draw X-axis tick labels
         let num_x_labels = 5;
         for i in 0..=num_x_labels {
             let ratio = i as f32 / num_x_labels as f32;
@@ -193,20 +219,6 @@ impl ChartWidget {
                 position: Point::new(x - 10.0, area.y + area.height - padding + 15.0),
                 color: label_color,
                 size: 12.0.into(),
-                ..canvas::Text::default()
-            });
-        }
-
-        // Draw X-axis label (centered below the axis)
-        if !self.settings.x_label.is_empty() {
-            frame.fill_text(canvas::Text {
-                content: self.settings.x_label.clone(),
-                position: Point::new(
-                    area.x + padding + chart_width / 2.0 - 20.0,
-                    area.y + area.height - 5.0,
-                ),
-                color: label_color,
-                size: 14.0.into(),
                 ..canvas::Text::default()
             });
         }

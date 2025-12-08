@@ -1,5 +1,5 @@
 use crate::module_view::module_widget::{
-    MIN_CHART_HEIGHT, MIN_CHART_WIDTH, ModuleWidget, ModuleWidgetWindow, ModuleWidgetWindowView,
+    MIN_CHART_HEIGHT, MIN_CHART_WIDTH, ModuleWidget, ModuleWidgetWindow, ModuleWidgetWindowView, WidgetData,
 };
 use iced::widget::canvas;
 use iced::{Color, Point, Rectangle, Size};
@@ -68,6 +68,12 @@ impl ModuleWidgetWindowView for MeterWidget {
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
+    }
+
+    fn add_new_data_item(&mut self, data: &WidgetData) {
+        // if let WidgetData::Meter(value) = data {
+        //     self.set_value(*value);
+        // }
     }
 }
 

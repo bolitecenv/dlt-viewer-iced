@@ -118,7 +118,7 @@ impl ModuleCanvas {
                 
                 let new_id = self.module_widget.keys().max().unwrap_or(&0) + 1;
                 let dlt_data_regex_item = DltDataRegexItem {
-                    regex: ".*".to_string(),
+                    regex: r"X:\s*(?<X>[-+]?[0-9]*\.?[0-9]+).*Y:\s*(?<Y>[-+]?[0-9]*\.?[0-9]+)".to_string(),
                     id: new_id as usize,
                     description: "Default Regex".to_string(),
                 };

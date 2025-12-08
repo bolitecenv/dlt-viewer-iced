@@ -1,8 +1,8 @@
 use std::any::Any;
 
-use iced::{Color, Point, Size, widget::canvas};
+use iced::{Color, Point, Size, advanced::svg::Data, widget::canvas};
 
-use crate::{components::dlt_data_manager::DltDataRegexItem, message::Message};
+use crate::{components::dlt_data_manager::DltDataRegexItem, message::Message, module_view::{ChartWidget, chart_widget::ChartData}};
 
 // Constants
 pub const RESIZE_HANDLE_SIZE: f32 = 10.0;
@@ -22,6 +22,11 @@ pub enum ResizeType {
     Corner,
 }
 
+#[derive(Debug, Clone)]
+pub enum WidgetData {
+    Chart(ChartData),
+}
+
 pub struct ModuleWidget {
     pub id: usize,
     pub module_widget: Box<dyn ModuleWidgetWindowView>,
@@ -35,6 +40,39 @@ impl ModuleWidget {
             module_widget,
             dlt_data_regex_item,
         }
+    }
+
+    pub fn add_new_data(&mut self, data: &String) {
+        if let Some(dlt_regex_item) = &self.dlt_data_regex_item {
+            let regex = regex::Regex::new(&dlt_regex_item.regex).unwrap();
+            if regex.is_match(data) {
+                // Here you can handle the matched message as needed
+                println!("Module ID {}: Message matched regex {}: {}", self.id, dlt_regex_item.regex, data);
+                if let Some(widget_data) = self.process_data_for_widget(data) {
+                    // Handle the processed widget data
+                    self.module_widget.add_new_data_item(&widget_data);
+                }
+            }
+        }
+    }
+
+    fn process_data_for_widget(&mut self, data: &String) -> Option<WidgetData> {
+        if self.module_widget.as_any().is::<ChartWidget>() {
+            if let Some(dlt_regex_item) = &self.dlt_data_regex_item {
+                let regex = regex::Regex::new(&dlt_regex_item.regex).unwrap();
+                if regex.is_match(data) {
+                    let captures = regex.captures(data).unwrap();
+                    let x_value: f32 = captures.name("X").unwrap().as_str().parse().unwrap_or(0.0);
+                    let y_value: f32 = captures.name("Y").unwrap().as_str().parse().unwrap_or(0.0);
+                    let chart_data = ChartData {
+                        x_value: x_value,
+                        y_value: y_value,
+                    };
+                    return Some(WidgetData::Chart(chart_data));
+                }
+            }
+        }
+        None
     }
 }
 
@@ -166,6 +204,7 @@ pub trait ModuleWidgetWindowView: Send + Sync {
     fn clone_box(&self) -> Box<dyn ModuleWidgetWindowView>;
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
+    fn add_new_data_item(&mut self, data: &WidgetData);
 }
 
 impl<T> ModuleScreen<T>

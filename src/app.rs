@@ -415,13 +415,7 @@ impl Dashboard {
         for row in &messages {
             let canvas_widgets = self.module_canvas.module_widget.values_mut();
             for widget in canvas_widgets {
-                if let Some(dlt_regex_item) = &mut widget.dlt_data_regex_item {
-                    let regex = Regex::new(&dlt_regex_item.regex).unwrap();
-                    if regex.is_match(&row.payload) {
-                        // Here you can handle the matched message as needed
-                        println!("Message matched regex {}: {}", dlt_regex_item.regex, row.payload);
-                    }
-                }
+                widget.add_new_data(&row.payload);
             }
         }
 
