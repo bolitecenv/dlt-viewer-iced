@@ -1,8 +1,9 @@
 use std::any::Any;
 
+use chrono::offset;
 use iced::{Color, Point, Size, advanced::svg::Data, widget::canvas};
 
-use crate::{components::dlt_data_manager::DltDataRegexItem, message::Message, module_view::{ChartWidget, chart_widget::ChartData}};
+use crate::{components::dlt_data_manager::DltDataRegexItem, message::Message, module_view::{ChartWidget, ModuleCanvas, canvas::{GRID_SIZE, SNAP_THRESHOLD}, chart_widget::ChartData}};
 
 // Constants
 pub const RESIZE_HANDLE_SIZE: f32 = 10.0;
@@ -89,6 +90,7 @@ impl Clone for ModuleWidget {
 #[derive(Debug, Clone)]
 pub struct ModuleWidgetWindow {
     pub position: Point,
+    pub initial_position: Point,
     pub size: Size,
     pub border_color: Color,
     pub border_width: f32,
@@ -102,6 +104,7 @@ impl ModuleWidgetWindow {
     pub fn default() -> Self {
         Self {
             position: Point::new(0.0, 0.0),
+            initial_position: Point::new(0.0, 0.0),
             size: Size::new(200.0, 200.0),
             border_color: Color::from_rgb(0.0, 0.0, 0.0),
             border_width: 1.0,
@@ -191,14 +194,47 @@ pub trait ModuleWidgetWindowView: Send + Sync {
 
         self.draw(frame);
     }
-    fn move_window(&mut self, new_position: Point) {
+
+    fn move_window(&mut self, initial_mouse_position: Point, current_mouse_position: Point) {
         let window = self.get_window_mut();
-        window.position = new_position;
+        let offset_x = initial_mouse_position.x - window.initial_position.x;
+        let offset_y = initial_mouse_position.y - window.initial_position.y;
+
+        let delta_x = current_mouse_position.x - initial_mouse_position.x;
+        let delta_y = current_mouse_position.y - initial_mouse_position.y;
+
+        // Apply the delta to the current window position
+        window.position.x = initial_mouse_position.x + delta_x - offset_x;
+        window.position.y = initial_mouse_position.y + delta_y - offset_y;
     }
 
-    fn resize_window(&mut self, new_size: Size) {
+    fn set_window_initial_position(&mut self, position: Point) {
         let window = self.get_window_mut();
-        window.size = new_size;
+        window.initial_position = position;
+    }
+
+    fn get_window_position(&self) -> Point {
+        let window = self.get_window();
+        window.position
+    }
+
+    fn resize_window(&mut self, resize_type: ResizeType, position: Point) {
+        let window = self.get_window_mut();
+        
+        match resize_type {
+            ResizeType::Right => {
+                window.size.width = (position.x - window.position.x).max(MIN_CHART_WIDTH);
+            }
+            ResizeType::Bottom => {
+                window.size.height = (position.y - window.position.y).max(MIN_CHART_HEIGHT);
+            }
+            ResizeType::Corner => {
+                window.size.width = (position.x - window.position.x).max(MIN_CHART_WIDTH);
+                window.size.height = (position.y - window.position.y).max(MIN_CHART_HEIGHT);
+            }
+            _ => {}
+        }
+        window.size = sticky_snap_to_grid_size(window.size);
     }
 
     fn clone_box(&self) -> Box<dyn ModuleWidgetWindowView>;
@@ -226,4 +262,21 @@ where
     pub fn add_widget(&mut self, widget: T) {
         self.widget_components.push(widget);
     }
+}
+
+
+fn sticky_snap_to_grid(value: f32, grid_size: f32, threshold: f32) -> f32 {
+    let remainder = value % grid_size;
+    if remainder < threshold {
+        value - remainder
+    } else if remainder > grid_size - threshold {
+        value + (grid_size - remainder)
+    } else {
+        value
+    }
+}
+fn sticky_snap_to_grid_size(size: Size) -> Size {
+    let snapped_width = sticky_snap_to_grid(size.width, GRID_SIZE, SNAP_THRESHOLD);
+    let snapped_height = sticky_snap_to_grid(size.height, GRID_SIZE, SNAP_THRESHOLD);
+    Size::new(snapped_width, snapped_height)
 }

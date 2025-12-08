@@ -41,6 +41,7 @@ impl ModuleWidgetWindowView for MeterWidget {
         Box::new(MeterWidget {
             window: ModuleWidgetWindow {
                 position: self.window.position,
+                initial_position: self.window.initial_position,
                 size: self.window.size,
                 border_color: self.window.border_color,
                 border_width: self.window.border_width,

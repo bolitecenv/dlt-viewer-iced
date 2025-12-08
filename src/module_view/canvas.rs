@@ -11,6 +11,7 @@ use crate::module_view::meter_widget::MeterSettings;
 use crate::module_view::meter_widget::MeterWidget;
 use crate::module_view::module_widget::*;
 use crate::module_view::setting_modals::chart_widget_setting_modal::ChartWidgetModal;
+use iced::advanced::graphics::core::window;
 use iced::widget::canvas::{self, Canvas};
 use iced::{Color, Element, Length, Point, Rectangle, Renderer, Size, Task, Theme, keyboard, mouse};
 use std::collections::HashMap;
@@ -25,6 +26,7 @@ pub struct ModuleCanvas {
     pub circular_context_menu: Option<CircularContextMenu>,
     pub context_menu: Option<ContextMenu>, // NEW: Context menu state
     pub selected_module: Option<usize>,  // Track which module is selected
+    pub selected_module_position: Point, // Track position where module was selected
     pub hovered_module: Option<usize>,   // Track which module is hovered
     pub resize_module: Option<(usize, ResizeType)>, // Track which module is being resized
     pub panning_chart: Option<usize>,  // Track which chart is being panned
@@ -89,6 +91,7 @@ impl ModuleCanvas {
             circular_context_menu: None,
             context_menu: None,
             selected_module: None,
+            selected_module_position: Point::ORIGIN,
             hovered_module: None,
             resize_module: None,
             panning_chart: None,
@@ -226,11 +229,7 @@ impl ModuleCanvas {
                     else if let Some(selected_id) = self.selected_module {
                         if self.panning_chart.is_none() {
                             if let Some(module) = self.module_widget.get_mut(&selected_id) {
-                                let window = module.module_widget.get_window_mut();
-                                window.position = Point {
-                                    x: position.x - window.size.width / 2.0,
-                                    y: position.y - window.size.height / 2.0,
-                                };
+                                module.module_widget.move_window(self.selected_module_position, position);
                             }
                         }
                     }
@@ -239,22 +238,7 @@ impl ModuleCanvas {
                     if self.panning_chart.is_none() {
                         if let Some((resize_id, resize_type)) = self.resize_module {
                             if let Some(module) = self.module_widget.get_mut(&resize_id) {
-                                let window = module.module_widget.get_window_mut();
-                                match resize_type {
-                                    ResizeType::Right => {
-                                        window.size.width = (position.x - window.position.x).max(MIN_CHART_WIDTH);
-                                    }
-                                    ResizeType::Bottom => {
-                                        window.size.height = (position.y - window.position.y).max(MIN_CHART_HEIGHT);
-                                    }
-                                    ResizeType::Corner => {
-                                        window.size.width = (position.x - window.position.x).max(MIN_CHART_WIDTH);
-                                        window.size.height = (position.y - window.position.y).max(MIN_CHART_HEIGHT);
-                                    }
-                                    _ => {}
-                                }
-                                // Snap the window position and size to the grid
-                                window.size = Self::sticky_snap_to_grid_size(window.size);
+                                module.module_widget.resize_window(resize_type, position);
                             }
                         }
                     }
@@ -358,6 +342,12 @@ impl ModuleCanvas {
 
                     self.context_menu = None;
                 }
+
+                if let Some(selected_id) = self.selected_module {
+                    if let Some(module) = self.module_widget.get_mut(&selected_id) {
+                        module.module_widget.set_window_initial_position(module.module_widget.get_window_position());
+                    }
+                }
             }
             ModuleCanvasMessage::LeftMousePressed(_position) => {
                 self.state.left_mouse_button.is_pressed = true;
@@ -385,6 +375,8 @@ impl ModuleCanvas {
                 // Only select/resize if not panning
                 if self.panning_chart.is_none() {
                     self.selected_module = self.get_module_at_position(_position);
+                    self.selected_module_position = _position;
+
                     if self.selected_module.is_none() {
                         self.resize_module = self.get_module_resize_at_position(_position);
                     }
@@ -427,23 +419,6 @@ impl ModuleCanvas {
             }
         }
         None
-    }
-
-    fn sticky_snap_to_grid(value: f32, grid_size: f32, threshold: f32) -> f32 {
-        let remainder = value % grid_size;
-        if remainder < threshold {
-            value - remainder
-        } else if remainder > grid_size - threshold {
-            value + (grid_size - remainder)
-        } else {
-            value
-        }
-    }
-
-    fn sticky_snap_to_grid_size(size: Size) -> Size {
-        let snapped_width = Self::sticky_snap_to_grid(size.width, GRID_SIZE, SNAP_THRESHOLD);
-        let snapped_height = Self::sticky_snap_to_grid(size.height, GRID_SIZE, SNAP_THRESHOLD);
-        Size::new(snapped_width, snapped_height)
     }
 
     fn draw_grid(&self, frame: &mut canvas::Frame, bounds: Rectangle) {
