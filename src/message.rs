@@ -43,9 +43,6 @@ pub enum Message {
 
 
     // Module View Messages
-    MouseWheel(usize, f32),
-    ShiftKeyChanged(bool),
-
     ToggleGrid,
     ToggleLegend,
 

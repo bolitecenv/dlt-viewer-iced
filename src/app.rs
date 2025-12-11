@@ -1,25 +1,18 @@
-use crate::components::dlt_data_manager::{
-    DltDataChartItem, DltDataGattChartItem, DltDataModuleItem, DltDataRegexItem,
-};
 use crate::components::tcp_handler::{apply_ecu_updates, tcp_connection_subscription};
-
 use crate::components::{navigation, top_bar};
 use crate::message::{Message, Page};
 use crate::module_view::ModuleCanvas;
-
 use crate::modal_window::modal_window::*;
-
 use crate::pages::ecu_setting::{EcuListView, EcuSelection};
 use crate::pages::{self};
 use crate::plugin::DashboardContext;
 use crate::plugin_registry::PluginRegistry;
-use crate::types::{FrontDltAppIdItem, FrontDltEcuItem};
-
+use crate::types::FrontDltEcuItem;
 use crate::message::ConnectionEvent;
 use iced::futures::{self};
 use iced::widget::stack;
 use iced::{
-    Font, Point, Size,
+    Font,
     font::{Family, Stretch, Style, Weight},
 };
 use iced::{
@@ -27,10 +20,6 @@ use iced::{
     widget::{column, container, row},
 };
 use pages::table::DltMessageRow;
-use rand::Rng;
-use regex::Regex;
-use std::collections::HashMap;
-use std::rc::Rc;
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -41,14 +30,6 @@ pub const ICON_FONT: Font = Font {
     stretch: Stretch::Normal,
     style: Style::Normal,
 };
-
-// NEW: Add ResizeState struct
-#[derive(Debug, Clone)]
-pub struct ResizeState {
-    pub chart_id: usize,
-    pub initial_size: Size,
-    pub initial_cursor: Point,
-}
 
 pub struct Dashboard {
     pub current_page: Page,
@@ -64,7 +45,6 @@ pub struct Dashboard {
     pub registry: PluginRegistry,
     pub current_plugin: Option<String>,
     pub ecu_list: Vec<FrontDltEcuItem>,
-    pub regex_items: Vec<DltDataRegexItem>,
     pub ecu_list_view: EcuListView,
     pub modal_window: Option<Box<dyn ModalWindowView>>,
 }
@@ -88,7 +68,6 @@ impl Default for Dashboard {
             registry: PluginRegistry::new(),
             current_plugin: None,
             ecu_list: Vec::new(),
-            regex_items: Vec::new(),
             ecu_list_view: EcuListView::new(ecu_list.clone()),
             modal_window: None,
         }
@@ -139,10 +118,6 @@ impl Dashboard {
                 println!("Refreshing DLT items...");
                 // let dlt_item = DLT_ECU_CONTEXT_STORE.lock().unwrap().clone();
                 // self.dlt_settings.set_dlt_items(dlt_item.clone());
-            }
-
-
-            Message::ShiftKeyChanged(pressed) => {
             }
             Message::PluginSelected(name) => {
                 self.current_plugin = Some(name);
@@ -264,7 +239,7 @@ impl Dashboard {
             },
             Message::ModalWindowMessage(content) => {
                 if let Some(modal) = &mut self.modal_window {
-                    let mut task: Task<Message> = Task::none();
+                    let task: Task<Message>;
                     if let Some(ref_id) = modal.get_id() {                      
                         let widget = self.module_canvas.module_widget.get_mut(&(ref_id as usize));
 
@@ -307,7 +282,7 @@ impl Dashboard {
         }
     }
 
-    pub fn view(&self) -> Element<Message> {
+    pub fn view(&self) -> Element<'_, Message> {
         let top = top_bar::view(self.dark_mode);
         let nav = navigation::view(self.current_page.clone(), &self.registry, self.dark_mode);
 
@@ -362,46 +337,6 @@ impl Dashboard {
             ecu_list: &self.ecu_list,
             dlt_buffer: &self.messages,
         }
-    }
-
-    pub fn get_ecu_apps(&self, ecu_id: &str) -> Option<&Vec<FrontDltAppIdItem>> {
-        self.ecu_list
-            .iter()
-            .find(|ecu| ecu.ecuid == ecu_id)
-            .map(|ecu| &ecu.app_ids)
-    }
-
-    /// Get a specific app info
-    pub fn get_app_info(&self, ecu_id: &str, app_id: &str) -> Option<&FrontDltAppIdItem> {
-        self.ecu_list
-            .iter()
-            .find(|ecu| ecu.ecuid == ecu_id)
-            .and_then(|ecu| ecu.app_ids.iter().find(|app| app.apid == app_id))
-    }
-
-    /// Get all ECU IDs
-    pub fn get_all_ecu_ids(&self) -> Vec<String> {
-        self.ecu_list.iter().map(|ecu| ecu.ecuid.clone()).collect()
-    }
-
-    /// Get all app IDs for an ECU
-    pub fn get_all_app_ids(&self, ecu_id: &str) -> Vec<String> {
-        self.ecu_list
-            .iter()
-            .find(|ecu| ecu.ecuid == ecu_id)
-            .map(|ecu| ecu.app_ids.iter().map(|app| app.apid.clone()).collect())
-            .unwrap_or_default()
-    }
-
-    /// Get context count for an app
-    pub fn get_context_count(&self, ecu_id: &str, app_id: &str) -> usize {
-        self.get_app_info(ecu_id, app_id)
-            .map(|app| app.ctx_ids.len())
-            .unwrap_or(0)
-    }
-
-    fn add_regex_item(&mut self, item: DltDataRegexItem) {
-        self.regex_items.push(item);
     }
 
     fn process_dlt_messages(&mut self, mut messages: Vec<DltMessageRow>) {

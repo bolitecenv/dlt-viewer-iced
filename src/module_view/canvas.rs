@@ -571,13 +571,6 @@ impl canvas::Program<Message> for ModuleCanvas {
                 _ => {}
             },
             canvas::Event::Keyboard(keyboard_event) => match keyboard_event {
-                keyboard::Event::ModifiersChanged(modifiers) => {
-                    let shift_pressed = modifiers.shift();
-                    return (
-                        canvas::event::Status::Captured,
-                        Some(Message::ShiftKeyChanged(shift_pressed)),
-                    );
-                }
                 keyboard::Event::KeyPressed { key, .. } => {
                     // Handle 'R' key to reset view of hovered chart
                     if let keyboard::Key::Character(c) = &key {
