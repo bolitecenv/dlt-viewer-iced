@@ -11,7 +11,6 @@ use iced::Point;
 
 #[derive(Debug, Clone)]
 pub enum ConnectionEvent {
-    Connecting,
     Connected,
     Disconnected,
     Error(String),
@@ -28,23 +27,11 @@ pub enum Message {
     ConnectTcp,
     ConnectionEvent(ConnectionEvent),
     ClearMessages,
-    RefreshDltItems,
-    ApplyDltSettings,
-    SelectDltEcu(String),
-    SelectDltApp(String, String),
-    SelectDltContext(String, String, String),
-    CloseDltSettings,
     OpenDltSettings,
     UpdateLogLevel(String),
     UpdateTraceStatus(String),
     SaveContextSettings,
     CancelEditContext,
-    EditContext(i8, i8),
-
-
-    // Module View Messages
-    ToggleGrid,
-    ToggleLegend,
 
     PluginSelected(String),
     PluginMessage(String, PluginMessage),

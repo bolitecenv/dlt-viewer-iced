@@ -8,7 +8,7 @@ use std::time::Duration;
 use dlt_format_parser::{
     DltFormat, DltParse, LogInfoData, Mtin, ServiceGetLogInfoResponse, ServiceHandler, 
     ServiceParser, ServiceResponse, ServiceResult, ServiceSetLogLevelRequest, 
-    ServiceSetTraceStatusRequest, find_next_dlt_header
+    ServiceSetTraceStatusRequest, find_dlt_header
 };
 use iced::Subscription;
 use tokio::net::TcpStream;
@@ -29,7 +29,7 @@ enum ConnectionState {
 // Constants
 // ============================================================================
 
-const BUFFER_SIZE: usize = 4096;
+const BUFFER_SIZE: usize = 4096*4096*10; // 10 MB buffer
 const RECONNECT_DELAY_SECS: u64 = 5;
 
 // ============================================================================
@@ -186,14 +186,8 @@ fn parse_dlt_messages(buffer: &mut Vec<u8>, messages_parsed: &mut usize) -> Opti
     let mut current_offset = 0;
     
     loop {
-        // Try to find the next valid DLT header
-        match find_next_dlt_header(buffer, current_offset) {
-            Some(header_offset) => {
-                // If header is not at the beginning, we have corrupt/incomplete data before it
-                if header_offset > current_offset {
-                    break;
-                }
-                
+        match find_dlt_header(buffer, current_offset) {
+            Some(package_len) => {                
                 // Try to parse the DLT message at this offset
                 let parse_buffer = &buffer[current_offset..];
                 match parse_buffer.dlt_parse() {
@@ -226,21 +220,17 @@ fn parse_dlt_messages(buffer: &mut Vec<u8>, messages_parsed: &mut usize) -> Opti
                                 println!("Unknown MTIN message");
                             }
                         }
-                        
-                        // Calculate how many bytes we consumed
-                        let bytes_consumed = parse_buffer.len() - remaining.len();
-                        current_offset += bytes_consumed;
-                        println!("Parsed DLT message #{}, {} bytes", *messages_parsed, bytes_consumed);
                     }
                     Err(_) => {
                         println!("Found header at offset {} but message incomplete, waiting for more data", current_offset);
                         break;
                     }
                 }
+                current_offset += package_len as usize;
             }
             None => {
-                if current_offset == 0 && buffer.len() > 0 {
-                    println!("No valid DLT header found in {} bytes, keeping buffer for next read", buffer.len());
+                if current_offset != buffer.len() {
+                    println!("No more DLT headers found, stopping parse at offset {}", current_offset);
                 }
                 break;
             }

@@ -85,7 +85,140 @@ impl ModalWindow_ModuleGanttChartWidgetSettingsView {
             Color::from_rgb(0.5, 0.5, 0.5) 
         };
 
+        
 
+
+        column![
+            // Chart Title
+            row![
+                text("Title:").size(14).color(label_color).width(Length::Fixed(120.0)),
+                text_input("Enter chart title", title)
+                    .on_input(|title| Message::UpdateGanttChartWidgetSettingsMessage(
+                        ModuleGanttChartWidgetSettingsMessage::UpdateChartTitle(title)
+                    ))
+                    .size(14)
+                    .width(Length::Fill)
+                    .style(move |theme: &Theme, status| {
+                        text_input::Style {
+                            background: if dark_mode {
+                                Color::from_rgb(0.2, 0.2, 0.2).into()
+                            } else {
+                                Color::WHITE.into()
+                            },
+                            border: iced::Border {
+                                width: 1.0,
+                                color: if dark_mode {
+                                    Color::from_rgb(0.4, 0.4, 0.4)
+                                } else {
+                                    Color::from_rgb(0.7, 0.7, 0.7)
+                                },
+                                radius: 4.0.into(),
+                            },
+                            icon: text_input::default(theme, status).icon,
+                            placeholder: text_input::default(theme, status).placeholder,
+                            value: if dark_mode { Color::WHITE } else { Color::BLACK },
+                            selection: text_input::default(theme, status).selection,
+                        }
+                    }),
+            ]
+            .spacing(10)
+            .align_y(iced::alignment::Vertical::Center),
+
+            Space::new(Length::Shrink, Length::Fixed(15.0)),
+
+            // Time Scale
+            row![
+                text("Time Scale:").size(14).color(label_color).width(Length::Fixed(120.0)),
+                text_input("Enter time scale (e.g., 1.0)", &self.time_scale_input)
+                    .on_input(|scale| Message::UpdateGanttChartWidgetSettingsMessage(
+                        ModuleGanttChartWidgetSettingsMessage::UpdateTimeScale(scale)
+                    ))
+                    .size(14)
+                    .width(Length::Fill)
+                    .style(move |theme: &Theme, status| {
+                        text_input::Style {
+                            background: if dark_mode {
+                                Color::from_rgb(0.2, 0.2, 0.2).into()
+                            } else {
+                                Color::WHITE.into()
+                            },
+                            border: iced::Border {
+                                width: 1.0,
+                                color: if dark_mode {
+                                    Color::from_rgb(0.4, 0.4, 0.4)
+                                } else {
+                                    Color::from_rgb(0.7, 0.7, 0.7)
+                                },
+                                radius: 4.0.into(),
+                            },
+                            icon: text_input::default(theme, status).icon,
+                            placeholder: text_input::default(theme, status).placeholder,
+                            value: if dark_mode { Color::WHITE } else { Color::BLACK },
+                            selection: text_input::default(theme, status).selection,
+                        }
+                    }),
+            ]
+            .spacing(10)
+            .align_y(iced::alignment::Vertical::Center),
+
+            Space::new(Length::Shrink, Length::Fixed(20.0)),
+
+            text("Regex Pattern for Gantt Data Extraction").size(16).color(text_color),
+
+            Space::new(Length::Shrink, Length::Fixed(10.0)),
+
+            row![
+                text("Regex Pattern:").size(14).color(label_color).width(Length::Fixed(120.0)),
+                text_input("Enter regex pattern", &self.widget.as_ref().unwrap().get_dlt_data_regex_item().unwrap().regex)
+                    .on_input(|pattern| Message::UpdateGanttChartWidgetSettingsMessage(
+                        ModuleGanttChartWidgetSettingsMessage::UpdateRegexPattern(pattern)
+                    ))
+                    .size(14)
+                    .width(Length::Fill)
+                    .style(move |theme: &Theme, status| {
+                        text_input::Style {
+                            background: if dark_mode {
+                                Color::from_rgb(0.2, 0.2, 0.2).into()
+                            } else {
+                                Color::WHITE.into()
+                            },
+                            border: iced::Border {
+                                width: 1.0,
+                                color: if dark_mode {
+                                    Color::from_rgb(0.4, 0.4, 0.4)
+                                } else {
+                                    Color::from_rgb(0.7, 0.7, 0.7)
+                                },
+                                radius: 4.0.into(),
+                            },
+                            icon: text_input::default(theme, status).icon,
+                            placeholder: text_input::default(theme, status).placeholder,
+                            value: if dark_mode { Color::WHITE } else { Color::BLACK },
+                            selection: text_input::default(theme, status).selection,
+                        }
+                    }),
+            ]
+            .spacing(10)
+            .align_y(iced::alignment::Vertical::Center),
+
+
+            // Display Options Section
+            text("Display Options").size(16).color(text_color),
+            
+            Space::new(Length::Shrink, Length::Fixed(10.0)),
+
+            // Show Dependencies Checkbox
+            checkbox("Show Dependencies", show_dependencies)
+                .on_toggle(|_| Message::UpdateGanttChartWidgetSettingsMessage(
+                    ModuleGanttChartWidgetSettingsMessage::ToggleDependencies
+                ))
+                .size(14)
+                .text_size(14),
+
+            Space::new(Length::Shrink, Length::Fixed(15.0)),
+        ]
+        .spacing(5)
+        .into()
     }
 }
 

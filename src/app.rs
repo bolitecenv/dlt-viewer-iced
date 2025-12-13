@@ -63,7 +63,7 @@ impl Default for Dashboard {
             should_connect: false,
             messages: Vec::new(),
             message_id_counter: 0,
-            max_messages: 1000,
+            max_messages: 1000000000,
             module_canvas: ModuleCanvas::new(),
             registry: PluginRegistry::new(),
             current_plugin: None,
@@ -91,9 +91,6 @@ impl Dashboard {
                 self.messages.clear();
             }
             Message::ConnectionEvent(event) => match event {
-                ConnectionEvent::Connecting => {
-                    self.connection_status = "Connecting...".to_string();
-                }
                 ConnectionEvent::Connected => {
                     self.connection_status = "Connected".to_string();
                 }
@@ -104,24 +101,17 @@ impl Dashboard {
                     self.connection_status = format!("Error: {}", err);
                 }
                 ConnectionEvent::DltMessageReceived(data) => {
-                    for row in data {
-                        if self.messages.len() >= self.max_messages {
-                            self.messages.remove(0);
-                        }
+                    // for row in data {
+                    //     if self.messages.len() >= self.max_messages {
+                    //         self.messages.remove(0);
+                    //     }
 
-                        self.messages.push(row);
-                    }
+                    //     self.messages.push(row);
+                    // }
                 }
             },
-            
-            Message::RefreshDltItems => {
-                println!("Refreshing DLT items...");
-                // let dlt_item = DLT_ECU_CONTEXT_STORE.lock().unwrap().clone();
-                // self.dlt_settings.set_dlt_items(dlt_item.clone());
-            }
             Message::PluginSelected(name) => {
                 self.current_plugin = Some(name);
-                return Task::none();
             }
             Message::PluginMessage(plugin_name, msg) => {
                 // Clone the dashboard data so the context does not hold an immutable borrow of `self`
@@ -139,8 +129,8 @@ impl Dashboard {
             }
             Message::EcuListUpdate(ecu_updates) => {
                 // Apply ECU updates to your ecu_list
-                apply_ecu_updates(&mut self.ecu_list, ecu_updates);
-                self.ecu_list_view.set_ecu_list(self.ecu_list.clone());
+                // apply_ecu_updates(&mut self.ecu_list, ecu_updates);
+                // self.ecu_list_view.set_ecu_list(self.ecu_list.clone());
             }
 
             Message::BatchUpdate {
@@ -149,9 +139,9 @@ impl Dashboard {
             } => {
                 self.process_dlt_messages(dlt_messages);
 
-                // 2. Apply ECU updates
-                apply_ecu_updates(&mut self.ecu_list, ecu_updates);
-                self.ecu_list_view.set_ecu_list(self.ecu_list.clone());
+                // // 2. Apply ECU updates
+                // apply_ecu_updates(&mut self.ecu_list, ecu_updates);
+                // self.ecu_list_view.set_ecu_list(self.ecu_list.clone());
 
             }
 
@@ -340,7 +330,6 @@ impl Dashboard {
     }
 
     fn process_dlt_messages(&mut self, mut messages: Vec<DltMessageRow>) {
-        println!("Received {} DLT messages", messages.len());
         if self.messages.len() > self.max_messages {
             let excess = self.messages.len() + messages.len() - self.max_messages;
             self.messages.drain(0..excess);
@@ -358,6 +347,7 @@ impl Dashboard {
             row.index = self.message_id_counter;
             self.message_id_counter += 1;
             self.messages.push(row.clone());
+            // println!("Added DLT message with index {}", row.index);
         }
     }
 
