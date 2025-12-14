@@ -10,6 +10,7 @@ use dlt_format_parser::{
     ServiceParser, ServiceResponse, ServiceResult, ServiceSetLogLevelRequest, 
     ServiceSetTraceStatusRequest, find_dlt_header
 };
+use futures::io::BufReader;
 use iced::Subscription;
 use tokio::net::TcpStream;
 use tokio::time::sleep;
@@ -198,6 +199,9 @@ fn parse_dlt_messages(buffer: &mut Vec<u8>, messages_parsed: &mut usize) -> Opti
                                 let dlt_message_row = DltMessageRow::from_dlt_format(&dlt_format);
                                 parsed_messages.push(dlt_message_row);
                                 *messages_parsed += 1;
+                                if (*messages_parsed % 100) == 0 {
+                                    println!("Parsed {} DLT messages", messages_parsed);
+                                }
                             }
 
                             Mtin::Control(_) => {
@@ -222,16 +226,27 @@ fn parse_dlt_messages(buffer: &mut Vec<u8>, messages_parsed: &mut usize) -> Opti
                         }
                     }
                     Err(_) => {
-                        println!("Found header at offset {} but message incomplete, waiting for more data", current_offset);
-                        break;
+                        if current_offset == 0 {
+                            println!("Failed to parse DLT message at offset {}, discarding entire buffer", current_offset);
+                            buffer.clear();
+                        } else {
+                            println!("Failed to parse DLT message at offset {}, discarding up to next header", current_offset);
+                        }
                     }
                 }
                 current_offset += package_len as usize;
+                if current_offset >= buffer.len() {
+                    current_offset = 0;
+                    buffer.clear();
+                    break;
+                }
             }
             None => {
-                if current_offset != buffer.len() {
-                    println!("No more DLT headers found, stopping parse at offset {}", current_offset);
-                }
+                // The message is incomplete. Wait for more data
+                println!("No valid DLT header found, waiting for more data {} bytes in buffer, {}",
+                    buffer.len(), current_offset);
+                //debug first 50 bytes
+                println!("Buffer snapshot: {:?}", &buffer[current_offset..std::cmp::min(current_offset + 50, buffer.len())]);
                 break;
             }
         }

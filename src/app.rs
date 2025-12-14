@@ -101,13 +101,7 @@ impl Dashboard {
                     self.connection_status = format!("Error: {}", err);
                 }
                 ConnectionEvent::DltMessageReceived(data) => {
-                    // for row in data {
-                    //     if self.messages.len() >= self.max_messages {
-                    //         self.messages.remove(0);
-                    //     }
-
-                    //     self.messages.push(row);
-                    // }
+                    self.process_dlt_messages(data);
                 }
             },
             Message::PluginSelected(name) => {
