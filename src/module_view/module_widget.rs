@@ -1,16 +1,13 @@
 use std::any::Any;
+use iced::{Color, Point, Size, widget::canvas};
 
-use chrono::offset;
-use iced::{Color, Point, Size, advanced::svg::Data, widget::canvas};
-
-use crate::{components::dlt_data_manager::DltDataRegexItem, message::Message, module_view::{ChartWidget, ModuleCanvas, canvas::{GRID_SIZE, SNAP_THRESHOLD}, chart_widget::ChartData}};
+use crate::{components::dlt_data_manager::DltDataRegexItem, module_view::{ChartWidget, canvas::{GRID_SIZE, SNAP_THRESHOLD}, chart_widget::ChartData}};
 
 // Constants
 pub const RESIZE_HANDLE_SIZE: f32 = 10.0;
 pub const MIN_CHART_WIDTH: f32 = 200.0;
 pub const MIN_CHART_HEIGHT: f32 = 200.0;
 
-pub const RESIZE_HANDLE_MARGIN: f32 = 5.0;
 pub const HORIZONTAL_RESIZE_MARGIN: f32 = 5.0;
 pub const VERTICAL_RESIZE_MARGIN: f32 = 5.0;
 
@@ -35,14 +32,6 @@ pub struct ModuleWidget {
 }
 
 impl ModuleWidget {
-    pub fn new(id: usize, module_widget: Box<dyn ModuleWidgetWindowView>, dlt_data_regex_item: Option<DltDataRegexItem>) -> Self {
-        Self {
-            id,
-            module_widget,
-            dlt_data_regex_item,
-        }
-    }
-
     pub fn add_new_data(&mut self, data: &String) {
         if let Some(dlt_regex_item) = &self.dlt_data_regex_item {
             let regex = regex::Regex::new(&dlt_regex_item.regex).unwrap();
@@ -114,9 +103,6 @@ impl ModuleWidgetWindow {
         }
     }
 }
-pub struct ModuleScreen<T: ModuleWidgetWindowView> {
-    pub widget_components: Vec<T>,
-}
 
 // New trait for module widget window view and move, resize
 pub trait ModuleWidgetWindowView: Send + Sync {
@@ -128,13 +114,6 @@ pub trait ModuleWidgetWindowView: Send + Sync {
             && point.x <= window.position.x + window.size.width - HORIZONTAL_RESIZE_MARGIN
             && point.y >= window.position.y + VERTICAL_RESIZE_MARGIN
             && point.y <= window.position.y + window.size.height - VERTICAL_RESIZE_MARGIN
-    }
-    fn get_window_some_resize_contains_point(&self, point: Point) -> bool {
-        self.get_window_left_resize_contains_point(point)
-            || self.get_window_right_resize_contains_point(point)
-            || self.get_window_top_resize_contains_point(point)
-            || self.get_window_bottom_resize_contains_point(point)
-            || self.get_window_resize_handle_contains_point(point)
     }
     fn get_window_resize_type_contains_point(&self, point: Point) -> Option<ResizeType> {
         if self.get_window_left_resize_contains_point(point) {
@@ -242,28 +221,6 @@ pub trait ModuleWidgetWindowView: Send + Sync {
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn add_new_data_item(&mut self, data: &WidgetData);
 }
-
-impl<T> ModuleScreen<T>
-where
-    T: ModuleWidgetWindowView,
-{
-    pub fn new() -> Self {
-        Self {
-            widget_components: Vec::new(),
-        }
-    }
-
-    pub fn draw(&self, frame: &mut canvas::Frame) {
-        for widget in self.widget_components.iter() {
-            widget.window_draw(frame);
-        }
-    }
-
-    pub fn add_widget(&mut self, widget: T) {
-        self.widget_components.push(widget);
-    }
-}
-
 
 fn sticky_snap_to_grid(value: f32, grid_size: f32, threshold: f32) -> f32 {
     let remainder = value % grid_size;
