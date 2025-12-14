@@ -3,10 +3,13 @@ use crate::message::Message;
 use crate::modal_window::confirm_modal_window::ConfirmModal;
 use crate::modal_window::modal_window::ModalWindowView;
 use crate::module_view::ChartWidget;
+use crate::module_view::GanttChartWidget;
 use crate::module_view::ModuleWidget;
 use crate::module_view::chart_widget::{ChartData, ChartSettings};
 use crate::module_view::circular_context_menu::*;
 use crate::module_view::context_menu::*;
+use crate::module_view::gantt_chart_widget::GanttDataPoint;
+use crate::module_view::gantt_chart_widget::GanttSettings;
 use crate::module_view::meter_widget::MeterSettings;
 use crate::module_view::meter_widget::MeterWidget;
 use crate::module_view::module_widget::*;
@@ -39,6 +42,7 @@ pub struct ModuleCanvas {
 pub enum ModuleCanvasMessage {
     AddChart,
     AddGanttChart,
+    AddMeter,
     Delete,
     Duplicate,
     Settings,
@@ -132,9 +136,35 @@ impl ModuleCanvas {
             }
             ModuleCanvasMessage::AddGanttChart => {
                 println!("Add Gantt Chart action triggered");
+
+                let mut gantt_chart_widget = GanttChartWidget::new(self.dark_mode, GanttSettings::default());
+                // Add random data for testing
+                for i in 0..3 {
+                    let start = i as f32 * 10.0;
+                    let end = start + 5.0 + (rand::random::<f32>() * 5.0);
+                    gantt_chart_widget.datas.push(GanttDataPoint { start_time: start, end_time: end, label: format!("Task {}", i + 1) });
+                }
+
+                let new_id = self.module_widget.keys().max().unwrap_or(&0) + 1;
+
+                let dlt_data_regex_item = DltDataRegexItem {
+                    regex: r"Start:\s*(?<Start>[-+]?[0-9]*\.?[0-9]+).*End:\s*(?<End>[-+]?[0-9]*\.?[0-9]+).*Label:\s*(?<Label>\w+)".to_string(),
+                    id: new_id as usize,
+                    description: "Default Gantt Regex".to_string(),
+                };
+
+                self.module_widget.insert(new_id, ModuleWidget {
+                    id: new_id,
+                    module_widget: Box::new(gantt_chart_widget),
+                    dlt_data_regex_item: Some(dlt_data_regex_item),
+                });
+
+                self.circular_context_menu = None;
+            }
+            ModuleCanvasMessage::AddMeter => {
                 app_view.replace(
-                    Box::new(ConfirmModal::new("Gantt Chart Added".to_string(),
-                                                "Gantt Chart has been added successfully.".to_string())
+                    Box::new(ConfirmModal::new("Meter Added".to_string(),
+                                                "Meter has been added successfully.".to_string())
                     )
                 );
 

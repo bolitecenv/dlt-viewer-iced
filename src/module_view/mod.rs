@@ -7,8 +7,10 @@ pub mod setting_modals;
 pub mod circular_context_menu;
 pub mod context_menu;
 pub mod meter_widget;
+pub mod gantt_chart_widget;
 
 // Re-export commonly used items
-pub use canvas::{ModuleCanvas};
+pub use canvas::ModuleCanvas;
 pub use chart_widget::ChartWidget;
-pub use module_widget::{MIN_CHART_HEIGHT, MIN_CHART_WIDTH, ModuleWidget, RESIZE_HANDLE_SIZE};
+pub use module_widget::ModuleWidget;
+pub use gantt_chart_widget::GanttChartWidget;

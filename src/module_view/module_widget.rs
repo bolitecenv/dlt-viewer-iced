@@ -1,7 +1,7 @@
 use std::any::Any;
 use iced::{Color, Point, Size, widget::canvas};
 
-use crate::{components::dlt_data_manager::DltDataRegexItem, module_view::{ChartWidget, canvas::{GRID_SIZE, SNAP_THRESHOLD}, chart_widget::ChartData}};
+use crate::{components::dlt_data_manager::DltDataRegexItem, module_view::{ChartWidget, GanttChartWidget, canvas::{GRID_SIZE, SNAP_THRESHOLD}, chart_widget::ChartData, gantt_chart_widget::GanttDataPoint}};
 
 // Constants
 pub const RESIZE_HANDLE_SIZE: f32 = 10.0;
@@ -23,6 +23,7 @@ pub enum ResizeType {
 #[derive(Debug, Clone)]
 pub enum WidgetData {
     Chart(ChartData),
+    Gantt(GanttDataPoint),
 }
 
 pub struct ModuleWidget {
@@ -59,6 +60,22 @@ impl ModuleWidget {
                         y_value: y_value,
                     };
                     return Some(WidgetData::Chart(chart_data));
+                }
+            }
+        } else if self.module_widget.as_any().is::<GanttChartWidget>() {
+            if let Some(dlt_regex_item) = &self.dlt_data_regex_item {
+                let regex = regex::Regex::new(&dlt_regex_item.regex).unwrap();
+                if regex.is_match(data) {
+                    let captures = regex.captures(data).unwrap();
+                    let start_time: f32 = captures.name("Start").unwrap().as_str().parse().unwrap_or(0.0);
+                    let end_time: f32 = captures.name("End").unwrap().as_str().parse().unwrap_or(0.0);
+                    let label: String = captures.name("Label").unwrap().as_str().to_string();
+                    let gantt_data = GanttDataPoint {
+                        start_time,
+                        end_time,
+                        label,
+                    };
+                    return Some(WidgetData::Gantt(gantt_data));
                 }
             }
         }

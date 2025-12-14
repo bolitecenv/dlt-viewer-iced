@@ -94,8 +94,14 @@ impl ModuleWidgetWindowView for ChartWidget {
     }
 
     fn add_new_data_item(&mut self, data: &WidgetData) {
-        let WidgetData::Chart(chart_data) = data;
-        self.datas.push(chart_data.clone());
+        match data {
+            WidgetData::Chart(chart_data) => {
+                self.datas.push(chart_data.clone());
+            }
+            _ => {
+                println!("Received unsupported data type for ChartWidget");
+            }
+        }
     }
 }
 

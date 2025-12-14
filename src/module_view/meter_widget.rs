@@ -1,8 +1,8 @@
 use crate::module_view::module_widget::{
-    MIN_CHART_HEIGHT, MIN_CHART_WIDTH, ModuleWidget, ModuleWidgetWindow, ModuleWidgetWindowView, WidgetData,
+    MIN_CHART_HEIGHT, MIN_CHART_WIDTH, ModuleWidgetWindow, ModuleWidgetWindowView, WidgetData,
 };
 use iced::widget::canvas;
-use iced::{Color, Point, Rectangle, Size};
+use iced::{Color, Point, Size};
 use std::any::Any;
 
 #[derive(Clone)]
