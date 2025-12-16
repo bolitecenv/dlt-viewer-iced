@@ -16,8 +16,21 @@ pub struct GanttSettings {
 
 #[derive(Debug, Clone)]
 pub struct GanttDataPoint {
+    pub constructed: bool,
     pub label: String,
     pub start_time: f32,
+    pub end_time: f32,
+}
+
+#[derive(Debug, Clone)]
+pub struct GanttStartData {
+    pub label: String,
+    pub start_time: f32,
+}
+
+#[derive(Debug, Clone)]
+pub struct GanttEndData {
+    pub label: String,
     pub end_time: f32,
 }
 
@@ -90,8 +103,48 @@ impl ModuleWidgetWindowView for GanttChartWidget {
     }
 
     fn add_new_data_item(&mut self, data: &WidgetData) {
-        if let WidgetData::Gantt(gantt_data) = data {
-            self.datas.push(gantt_data.clone());
+        match data {
+            WidgetData::GanttStart(start_data) => {
+                // Look for an existing incomplete entry with the same label
+                if let Some(existing) = self.datas.iter_mut()
+                    .find(|d| !d.constructed && d.label == start_data.label) {
+                    // Update existing entry with start time
+                    existing.start_time = start_data.start_time;
+                    if existing.end_time != 0.0 {
+                        existing.constructed = true;
+                    }
+                } else {
+                    // Create new entry with just start time
+                    let gantt_data = GanttDataPoint {
+                        constructed: false,
+                        start_time: start_data.start_time,
+                        end_time: 0.0,
+                        label: start_data.label.clone(),
+                    };
+                    self.datas.push(gantt_data);
+                }
+            },
+            WidgetData::GanttEnd(end_data) => {
+                // Look for an existing incomplete entry with the same label
+                if let Some(existing) = self.datas.iter_mut()
+                    .find(|d| !d.constructed && d.label == end_data.label) {
+                    // Update existing entry with end time
+                    existing.end_time = end_data.end_time;
+                    if existing.start_time != 0.0 {
+                        existing.constructed = true;
+                    }
+                } else {
+                    // Create new entry with just end time
+                    let gantt_data = GanttDataPoint {
+                        constructed: false,
+                        start_time: 0.0,
+                        end_time: end_data.end_time,
+                        label: end_data.label.clone(),
+                    };
+                    self.datas.push(gantt_data);
+                }
+            },
+            _ => {} // Ignore non-Gantt data
         }
     }
 }
@@ -145,6 +198,15 @@ impl GanttChartWidget {
             return;
         }
 
+        let filtered_data: Vec<&GanttDataPoint> = data
+        .iter()
+        .filter(|d| d.constructed)
+        .collect();
+
+        if filtered_data.is_empty() {
+            return;
+        }
+
         let label_width = if self.settings.show_labels { 120.0 } else { 0.0 };
         let padding = 20.0;
         
@@ -152,8 +214,8 @@ impl GanttChartWidget {
         let chart_x_start = area.x + label_width + padding;
         
         // 1. Calculate Time Range (X-Axis)
-        let min_start = data.iter().map(|d| d.start_time).fold(f32::MAX, f32::min);
-        let max_end = data.iter().map(|d| d.end_time).fold(0.0f32, f32::max);
+        let min_start = filtered_data.iter().map(|d| d.start_time).fold(f32::MAX, f32::min);
+        let max_end = filtered_data.iter().map(|d| d.end_time).fold(0.0f32, f32::max);
         
         let raw_range = (max_end - min_start).max(1.0);
         let x_range = raw_range * 1.1; 
@@ -226,10 +288,7 @@ impl GanttChartWidget {
             height: area.height - padding * 2.0,
         };
 
-        // We removed frame.with_save() and frame.clip()
-        // Instead, we calculate intersections below.
-
-        for (i, task) in data.iter().enumerate() {
+        for (i, task) in filtered_data.iter().enumerate() {
             let y_base = axis_y + 20.0;
             let y_pos = y_base + (i as f32 * current_row_height) + self.pan_offset_y;
 

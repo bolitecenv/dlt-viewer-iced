@@ -142,13 +142,13 @@ impl ModuleCanvas {
                 for i in 0..3 {
                     let start = i as f32 * 10.0;
                     let end = start + 5.0 + (rand::random::<f32>() * 5.0);
-                    gantt_chart_widget.datas.push(GanttDataPoint { start_time: start, end_time: end, label: format!("Task {}", i + 1) });
+                    gantt_chart_widget.datas.push(GanttDataPoint { constructed: true, start_time: start, end_time: end, label: format!("Task {}", i + 1) });
                 }
 
                 let new_id = self.module_widget.keys().max().unwrap_or(&0) + 1;
 
                 let dlt_data_regex_item = DltDataRegexItem {
-                    regex: r"Start:\s*(?<Start>[-+]?[0-9]*\.?[0-9]+).*End:\s*(?<End>[-+]?[0-9]*\.?[0-9]+).*Label:\s*(?<Label>\w+)".to_string(),
+                    regex: r"(?:START:\s*(?P<Start>\d+\.?\d*)|END:\s*(?P<End>\d+\.?\d*))\s*LABEL:\s*(?P<Label>\w+)".to_string(),
                     id: new_id as usize,
                     description: "Default Gantt Regex".to_string(),
                 };

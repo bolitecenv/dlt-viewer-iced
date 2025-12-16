@@ -1,7 +1,7 @@
 use std::any::Any;
 use iced::{Color, Point, Size, widget::canvas};
 
-use crate::{components::dlt_data_manager::DltDataRegexItem, module_view::{ChartWidget, GanttChartWidget, canvas::{GRID_SIZE, SNAP_THRESHOLD}, chart_widget::ChartData, gantt_chart_widget::GanttDataPoint}};
+use crate::{components::dlt_data_manager::DltDataRegexItem, module_view::{ChartWidget, GanttChartWidget, canvas::{GRID_SIZE, SNAP_THRESHOLD}, chart_widget::ChartData, gantt_chart_widget::{GanttDataPoint, GanttEndData, GanttStartData}}, pages::table::DltMessageRow};
 
 // Constants
 pub const RESIZE_HANDLE_SIZE: f32 = 10.0;
@@ -23,6 +23,8 @@ pub enum ResizeType {
 #[derive(Debug, Clone)]
 pub enum WidgetData {
     Chart(ChartData),
+    GanttStart(GanttStartData),
+    GanttEnd(GanttEndData),
     Gantt(GanttDataPoint),
 }
 
@@ -33,17 +35,10 @@ pub struct ModuleWidget {
 }
 
 impl ModuleWidget {
-    pub fn add_new_data(&mut self, data: &String) {
-        if let Some(dlt_regex_item) = &self.dlt_data_regex_item {
-            let regex = regex::Regex::new(&dlt_regex_item.regex).unwrap();
-            if regex.is_match(data) {
-                // Here you can handle the matched message as needed
-                println!("Module ID {}: Message matched regex {}: {}", self.id, dlt_regex_item.regex, data);
-                if let Some(widget_data) = self.process_data_for_widget(data) {
-                    // Handle the processed widget data
-                    self.module_widget.add_new_data_item(&widget_data);
-                }
-            }
+    pub fn add_new_data(&mut self, dlt_message: &DltMessageRow) {
+        println!("Adding new data to module widget: {}", dlt_message.payload);
+        if let Some(widget_data) = self.process_data_for_widget(&dlt_message.payload) {
+            self.module_widget.add_new_data_item(&widget_data);
         }
     }
 
@@ -67,15 +62,27 @@ impl ModuleWidget {
                 let regex = regex::Regex::new(&dlt_regex_item.regex).unwrap();
                 if regex.is_match(data) {
                     let captures = regex.captures(data).unwrap();
-                    let start_time: f32 = captures.name("Start").unwrap().as_str().parse().unwrap_or(0.0);
-                    let end_time: f32 = captures.name("End").unwrap().as_str().parse().unwrap_or(0.0);
-                    let label: String = captures.name("Label").unwrap().as_str().to_string();
-                    let gantt_data = GanttDataPoint {
-                        start_time,
-                        end_time,
-                        label,
-                    };
-                    return Some(WidgetData::Gantt(gantt_data));
+                    
+                    let label: String = captures.name("Label")
+                        .map(|m| m.as_str().to_string())
+                        .unwrap_or_default();
+                    
+                    // Check if this is a Start or End event
+                    if let Some(start_match) = captures.name("Start") {
+                        let start_time: f32 = start_match.as_str().parse().unwrap_or(0.0);
+                        let gantt_data = GanttStartData {
+                            start_time,
+                            label,
+                        };
+                        return Some(WidgetData::GanttStart(gantt_data));
+                    } else if let Some(end_match) = captures.name("End") {
+                        let end_time: f32 = end_match.as_str().parse().unwrap_or(0.0);
+                        let gantt_data = GanttEndData {
+                            end_time,
+                            label,
+                        };
+                        return Some(WidgetData::GanttEnd(gantt_data));
+                    }
                 }
             }
         }

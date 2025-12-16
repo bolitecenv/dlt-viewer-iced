@@ -333,7 +333,7 @@ impl Dashboard {
         for row in &messages {
             let canvas_widgets = self.module_canvas.module_widget.values_mut();
             for widget in canvas_widgets {
-                widget.add_new_data(&row.payload);
+                widget.add_new_data(&row);
             }
         }
 
