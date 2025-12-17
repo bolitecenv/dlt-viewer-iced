@@ -1,6 +1,8 @@
+use crate::components::dlt_data_manager::DltDataRegexItem;
 use crate::module_view::module_widget::{
     MIN_CHART_HEIGHT, MIN_CHART_WIDTH, ModuleWidgetWindow, ModuleWidgetWindowView, WidgetData
 };
+use crate::module_view::setting_modals::gantt_widget_setting_modal::GanttWidgetModal;
 use iced::widget::canvas;
 use iced::mouse;
 use iced::{Color, Point, Rectangle, Size};
@@ -74,8 +76,16 @@ impl ModuleWidgetWindowView for GanttChartWidget {
     }
 
     fn zoom(&mut self, delta: f32, shift_pressed: bool, ctrl_pressed: bool) {
-        println!("Zooming Gantt Chart: delta={}, shift={}, ctrl={}", delta, shift_pressed, ctrl_pressed);
         self.zoom_gantt_impl(delta, shift_pressed, ctrl_pressed);
+    }
+
+    fn open_settings_modal(&self, id: u32, dlt_regex_item: DltDataRegexItem) -> Option<Box<dyn super::setting_modals::setting_modal_window::SettingModal>> {
+        Some(Box::new(GanttWidgetModal::new(
+            id,
+            self.window.title.clone(),
+            dlt_regex_item,
+            self.clone(),
+        )))
     }
 
     fn clone_box(&self) -> Box<dyn ModuleWidgetWindowView> {

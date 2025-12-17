@@ -1,7 +1,7 @@
 use std::any::Any;
 use iced::{Color, Point, Size, widget::canvas};
 
-use crate::{components::dlt_data_manager::DltDataRegexItem, module_view::{ChartWidget, GanttChartWidget, canvas::{GRID_SIZE, SNAP_THRESHOLD}, chart_widget::ChartData, gantt_chart_widget::{GanttDataPoint, GanttEndData, GanttStartData}}, pages::table::DltMessageRow};
+use crate::{components::dlt_data_manager::DltDataRegexItem, module_view::{ChartWidget, GanttChartWidget, canvas::{GRID_SIZE, SNAP_THRESHOLD}, chart_widget::ChartData, gantt_chart_widget::{GanttDataPoint, GanttEndData, GanttStartData}, setting_modals::setting_modal_window::SettingModal}, pages::table::DltMessageRow};
 
 // Constants
 pub const RESIZE_HANDLE_SIZE: f32 = 10.0;
@@ -44,6 +44,10 @@ impl ModuleWidget {
 
     pub fn zoom(&mut self, delta: f32, shift_pressed: bool, ctrl_pressed: bool) {
         self.module_widget.zoom(delta, shift_pressed, ctrl_pressed);
+    }
+
+    pub fn open_settings_modal(&self) -> Option<Box<dyn SettingModal>> {
+        self.module_widget.open_settings_modal(self.id as u32, self.dlt_data_regex_item.as_ref().unwrap().clone())
     }
 
     fn process_data_for_widget(&mut self, data: &String) -> Option<WidgetData> {
@@ -252,6 +256,11 @@ pub trait ModuleWidgetWindowView: Send + Sync {
     fn pan(&mut self, _delta_x: f32, _delta_y: f32) {
         // Default implementation does nothing
         println!("Pan not implemented for this widget.");
+    }
+
+    fn open_settings_modal(&self, id: u32, dlt_regex_item: DltDataRegexItem) -> Option<Box<dyn SettingModal>> {
+        println!("Settings modal not implemented for this widget.");
+        None
     }
 
     fn clone_box(&self) -> Box<dyn ModuleWidgetWindowView>;

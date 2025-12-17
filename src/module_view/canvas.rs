@@ -14,6 +14,7 @@ use crate::module_view::meter_widget::MeterSettings;
 use crate::module_view::meter_widget::MeterWidget;
 use crate::module_view::module_widget::*;
 use crate::module_view::setting_modals::chart_widget_setting_modal::ChartWidgetModal;
+use crate::module_view::setting_modals::gantt_widget_setting_modal::GanttWidgetModal;
 use iced::advanced::graphics::core::window;
 use iced::keyboard::Key;
 use iced::keyboard::Location;
@@ -216,27 +217,11 @@ impl ModuleCanvas {
                 if let Some(menu) = &self.circular_context_menu {
                     if let Some(module_id) = menu.target_module {
                         println!("Opening settings for module: {}", module_id);
-                        let module = self.module_widget.get_mut(&module_id);
-
-                        if let Some(module) = module {
-                            if let Some(chart_widget) = module.module_widget.as_any_mut().downcast_mut::<ChartWidget>() {
-                                let regex_item = module.dlt_data_regex_item.clone().unwrap_or(DltDataRegexItem {
-                                    regex: "".to_string(),
-                                    id: 0,
-                                    description: "todo".to_string(),
-                                });
-                                // Clone the chart widget so the modal owns its copy and doesn't borrow from self
-                                app_view.replace(
-                                    Box::new(ChartWidgetModal::new(
-                                        module_id as u32,
-                                        format!("Chart Settings - {}", module_id),
-                                        regex_item,
-                                        chart_widget.clone(),
-                                    ))
-                                );
+                        if let Some(module) = self.module_widget.get(&module_id) {
+                            if let Some(modal) = module.open_settings_modal() {
+                                app_view.replace(modal);
                             }
                         }
-
                     }
                 }
                 self.circular_context_menu = None;
