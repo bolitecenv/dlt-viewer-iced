@@ -42,6 +42,10 @@ impl ModuleWidget {
         }
     }
 
+    pub fn zoom(&mut self, delta: f32, shift_pressed: bool, ctrl_pressed: bool) {
+        self.module_widget.zoom(delta, shift_pressed, ctrl_pressed);
+    }
+
     fn process_data_for_widget(&mut self, data: &String) -> Option<WidgetData> {
         if self.module_widget.as_any().is::<ChartWidget>() {
             if let Some(dlt_regex_item) = &self.dlt_data_regex_item {
@@ -238,6 +242,16 @@ pub trait ModuleWidgetWindowView: Send + Sync {
             _ => {}
         }
         window.size = sticky_snap_to_grid_size(window.size);
+    }
+
+    fn zoom(&mut self, _delta: f32, _shift_pressed: bool, _ctrl_pressed: bool) {
+        // Default implementation does nothing
+        println!("Zoom not implemented for this widget.");
+    }
+
+    fn pan(&mut self, _delta_x: f32, _delta_y: f32) {
+        // Default implementation does nothing
+        println!("Pan not implemented for this widget.");
     }
 
     fn clone_box(&self) -> Box<dyn ModuleWidgetWindowView>;

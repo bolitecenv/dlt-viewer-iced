@@ -54,9 +54,17 @@ impl ModuleWidgetWindowView for ChartWidget {
     }
 
     fn draw(&self, frame: &mut canvas::Frame) {
-        // Call the draw_chart function with proper parameters
         draw_chart_impl(frame, self, self.window.position, self.window.size);
     }
+
+    fn zoom(&mut self, delta: f32, zoom_x: bool, zoom_y: bool) {
+        self.zoom(delta, zoom_x, zoom_y);
+    }
+
+    fn pan(&mut self, delta_x: f32, delta_y: f32) {
+        self.pan(delta_x, delta_y);
+    }
+
     fn clone_box(&self) -> Box<dyn ModuleWidgetWindowView> {
         Box::new(ChartWidget {
             window: ModuleWidgetWindow {
@@ -121,14 +129,14 @@ impl ChartWidget {
     }
 
     pub fn pan(&mut self, delta_x: f32, delta_y: f32) {
-        self.pan_offset_x += delta_x;
-        self.pan_offset_y += delta_y;
+        self.pan_offset_x = delta_x/2.0;
+        self.pan_offset_y = delta_y/2.0;
     }
 
     pub fn zoom(&mut self, delta: f32, zoom_x: bool, zoom_y: bool) {
         let zoom_factor = if delta > 0.0 { 1.1 } else { 0.9 };
         
-        if zoom_x {
+        if !zoom_x {
             self.zoom_x *= zoom_factor;
             self.zoom_x = self.zoom_x.clamp(0.1, 10.0);
         }

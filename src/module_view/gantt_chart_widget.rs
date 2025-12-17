@@ -2,6 +2,7 @@ use crate::module_view::module_widget::{
     MIN_CHART_HEIGHT, MIN_CHART_WIDTH, ModuleWidgetWindow, ModuleWidgetWindowView, WidgetData
 };
 use iced::widget::canvas;
+use iced::mouse;
 use iced::{Color, Point, Rectangle, Size};
 use std::any::Any;
 
@@ -70,6 +71,11 @@ impl ModuleWidgetWindowView for GanttChartWidget {
     fn draw(&self, frame: &mut canvas::Frame) {
         // Call the standalone draw implementation
         draw_gantt_impl(frame, self, self.window.position, self.window.size);
+    }
+
+    fn zoom(&mut self, delta: f32, shift_pressed: bool, ctrl_pressed: bool) {
+        println!("Zooming Gantt Chart: delta={}, shift={}, ctrl={}", delta, shift_pressed, ctrl_pressed);
+        self.zoom_gantt_impl(delta, shift_pressed, ctrl_pressed);
     }
 
     fn clone_box(&self) -> Box<dyn ModuleWidgetWindowView> {
@@ -168,10 +174,10 @@ impl GanttChartWidget {
         self.pan_offset_y += delta_y;
     }
 
-    pub fn zoom(&mut self, delta: f32, zoom_x: bool, zoom_y: bool) {
+    pub fn zoom_gantt_impl(&mut self, delta: f32, zoom_x: bool, zoom_y: bool) {
         let zoom_factor = if delta > 0.0 { 1.1 } else { 0.9 };
 
-        if zoom_x {
+        if !zoom_x {
             self.zoom_x *= zoom_factor;
             self.zoom_x = self.zoom_x.clamp(0.1, 20.0);
         }
@@ -186,6 +192,45 @@ impl GanttChartWidget {
         self.pan_offset_y = 0.0;
         self.zoom_x = 1.0;
         self.zoom_y = 1.0;
+    }
+
+    /// Handle mouse wheel events for panning
+    /// Returns true if the event was handled
+    pub fn handle_mouse_wheel(&mut self, delta: mouse::ScrollDelta, modifiers: iced::keyboard::Modifiers) -> bool {
+        match delta {
+            mouse::ScrollDelta::Lines { x, y } => {
+                // Pan sensitivity multiplier
+                let pan_speed = 20.0;
+                
+                // Shift key: pan horizontally only
+                if modifiers.shift() {
+                    self.pan(-x * pan_speed, 0.0);
+                }
+                // Control/Command key: zoom instead of pan
+                else if modifiers.control() || modifiers.command() {
+                    self.zoom(y, true, true);
+                }
+                // Default: pan vertically with scroll, horizontally with horizontal scroll
+                else {
+                    self.pan(-x * pan_speed, y * pan_speed);
+                }
+                true
+            }
+            mouse::ScrollDelta::Pixels { x, y } => {
+                // For touchpad pixel-based scrolling
+                let pan_speed = 1.0;
+                
+                if modifiers.shift() {
+                    self.pan(-x * pan_speed, 0.0);
+                } else if modifiers.control() || modifiers.command() {
+                    let zoom_delta = if y > 0.0 { 1.0 } else { -1.0 };
+                    self.zoom(zoom_delta, true, true);
+                } else {
+                    self.pan(-x * pan_speed, y * pan_speed);
+                }
+                true
+            }
+        }
     }
 
     fn draw_gantt_chart(
@@ -279,32 +324,50 @@ impl GanttChartWidget {
         // 4. Draw Tasks (Bars)
         let current_row_height = self.settings.row_height * self.zoom_y;
         let current_bar_height = (self.settings.bar_height * self.zoom_y).max(2.0);
-        
+
         // Define the area where bars are allowed to be drawn (The Clipping Rectangle)
         let view_rect = Rectangle {
-            x: chart_x_start, // Start after the labels
-            y: axis_y + 1.0,  // Start below the axis
+            x: chart_x_start,
+            y: axis_y + 1.0,
             width: chart_width,
             height: area.height - padding * 2.0,
         };
 
-        for (i, task) in filtered_data.iter().enumerate() {
-            let y_base = axis_y + 20.0;
-            let y_pos = y_base + (i as f32 * current_row_height) + self.pan_offset_y;
+        // Group tasks by label to avoid duplicate Y labels
+        let mut label_to_row: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        let mut current_row = 0;
 
-            // Draw Label (Left side) - Labels are drawn outside the chart clip area
-            // Only draw label if the row is roughly vertically visible
+        for task in filtered_data.iter() {
+            // Get or assign a row for this label
+            let row_index = *label_to_row.entry(task.label.clone()).or_insert_with(|| {
+                let row = current_row;
+                current_row += 1;
+                row
+            });
+
+            let y_base = axis_y + 20.0;
+            let y_pos = y_base + (row_index as f32 * current_row_height) + self.pan_offset_y;
+
+            // Draw Label (Left side) - Only once per unique label
             if self.settings.show_labels 
                 && y_pos + current_row_height > area.y 
                 && y_pos < area.y + area.height 
             {
-                frame.fill_text(canvas::Text {
-                    content: task.label.clone(),
-                    position: Point::new(area.x + padding, y_pos + (current_row_height - 12.0) / 2.0),
-                    color: text_color,
-                    size: 13.0.into(),
-                    ..canvas::Text::default()
-                });
+                // Check if we need to draw this label (only draw once per row)
+                let should_draw_label = filtered_data.iter()
+                    .position(|t| t.label == task.label)
+                    .map(|pos| filtered_data[pos] as *const _ == *task as *const _)
+                    .unwrap_or(false);
+
+                if should_draw_label {
+                    frame.fill_text(canvas::Text {
+                        content: task.label.clone(),
+                        position: Point::new(area.x + padding, y_pos + (current_row_height - 12.0) / 2.0),
+                        color: text_color,
+                        size: 13.0.into(),
+                        ..canvas::Text::default()
+                    });
+                }
             }
 
             // Calculate Bar Geometry
@@ -314,7 +377,6 @@ impl GanttChartWidget {
             let start_ratio = (task.start_time - min_visible_time) / range_len;
             let end_ratio = (task.end_time - min_visible_time) / range_len;
 
-            // Skip if completely out of horizontal view
             if end_ratio < 0.0 || start_ratio > 1.0 {
                 continue;
             }
@@ -323,23 +385,18 @@ impl GanttChartWidget {
             let bar_w = (end_ratio - start_ratio) * chart_width;
             let bar_y = y_pos + (current_row_height - current_bar_height) / 2.0;
 
-            // Create the ideal bar rectangle
             let bar_rect = Rectangle::new(
                 Point::new(bar_x, bar_y), 
                 Size::new(bar_w, current_bar_height)
             );
 
-            // FIX: Use intersection to simulate clipping
-            // This returns None if there is no overlap, or the visible sub-rectangle if there is.
             if let Some(visible_bar) = bar_rect.intersection(&view_rect) {
-                // Fill the visible part
                 frame.fill_rectangle(
                     visible_bar.position(), 
                     visible_bar.size(), 
                     bar_color
                 );
                 
-                // Stroke the visible part
                 let bar_path = canvas::Path::rectangle(
                     visible_bar.position(), 
                     visible_bar.size()

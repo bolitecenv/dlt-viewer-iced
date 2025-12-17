@@ -15,7 +15,10 @@ use crate::module_view::meter_widget::MeterWidget;
 use crate::module_view::module_widget::*;
 use crate::module_view::setting_modals::chart_widget_setting_modal::ChartWidgetModal;
 use iced::advanced::graphics::core::window;
+use iced::keyboard::Key;
+use iced::keyboard::Location;
 use iced::widget::canvas::{self, Canvas};
+use iced::widget::shader::wgpu::naga::Module;
 use iced::{Color, Element, Length, Point, Rectangle, Renderer, Size, Task, Theme, keyboard, mouse};
 use std::collections::HashMap;
 
@@ -35,7 +38,9 @@ pub struct ModuleCanvas {
     pub panning_chart: Option<usize>,  // Track which chart is being panned
     pub state: CanvasState,
     pub shift_pressed: bool,  // Track Shift key state
+    pub ctrl_pressed: bool,   // Track Ctrl key state
     pub draw_grid: bool,  // Whether to draw the grid
+    pub middle_mouse_pressed: bool, // Track Middle mouse button state
 }
 
 #[derive(Debug, Clone)]
@@ -53,6 +58,9 @@ pub enum ModuleCanvasMessage {
     LeftMousePressed(Point),
     MouseWheel(f32, Point),  // New: for zoom
     ResetChartView(usize),   // New: reset chart pan/zoom
+    ShiftKeyChanged(bool), // New: Shift key state change
+    CtrlKeyChanged(bool),  // New: Ctrl key state change
+    MiddleMouseChanged(bool, Point), // New: Middle mouse button state change
 }
 
 #[derive(Clone)]
@@ -101,7 +109,9 @@ impl ModuleCanvas {
             panning_chart: None,
             state: CanvasState::default(),
             shift_pressed: false,
+            ctrl_pressed: false,
             draw_grid: false,
+            middle_mouse_pressed: false,
         }
     }
 
@@ -238,40 +248,33 @@ impl ModuleCanvas {
                 } else {
                     Point::new(0.0, 0.0)
                 };
-                self.state.last_cursor_position = Some(position);
 
                 // Update hovered module
                 self.hovered_module = self.get_module_at_position(position);
-                
-                if self.state.left_mouse_button.is_pressed {
-                    // Handle chart panning when Shift is pressed
-                    if self.shift_pressed && self.panning_chart.is_some() {
-                        if let Some(panning_id) = self.panning_chart {
-                            if let Some(module) = self.module_widget.get_mut(&panning_id) {
-                                if let Some(chart_widget) = module.module_widget.as_any_mut().downcast_mut::<ChartWidget>() {
-                                    // Pan the chart (invert delta for natural panning)
-                                    chart_widget.pan(-delta.x * 0.5, delta.y * 0.5);
-                                }
+
+                if self.hovered_module.is_some() {
+                    // Pan the chart if middle mouse button is pressed
+                    if self.middle_mouse_pressed {
+                        if let Some(hovered_id) = self.hovered_module {
+                            if let Some(module) = self.module_widget.get_mut(&hovered_id) {
+                                module.module_widget.pan(delta.x, delta.y);
                             }
                         }
                     }
-                    // Handle moving the selected module (only if not panning)
-                    else if let Some(selected_id) = self.selected_module {
-                        if self.panning_chart.is_none() {
-                            if let Some(module) = self.module_widget.get_mut(&selected_id) {
-                                module.module_widget.move_window(self.selected_module_position, position);
-                            }
+                }
+                
+                if self.state.left_mouse_button.is_pressed {
+                    if let Some(selected_id) = self.selected_module {
+                        if let Some(module) = self.module_widget.get_mut(&selected_id) {
+                            module.module_widget.move_window(self.selected_module_position, position);
                         }
                     }
 
-                    // Handle resizing (only if not panning)
-                    if self.panning_chart.is_none() {
-                        if let Some((resize_id, resize_type)) = self.resize_module {
-                            if let Some(module) = self.module_widget.get_mut(&resize_id) {
-                                module.module_widget.resize_window(resize_type, position);
-                            }
+                    if let Some((resize_id, resize_type)) = self.resize_module {
+                        if let Some(module) = self.module_widget.get_mut(&resize_id) {
+                            module.module_widget.resize_window(resize_type, position);
                         }
-                    }
+                    }               
                 }
 
                 if self.circular_context_menu.is_none() {
@@ -295,13 +298,7 @@ impl ModuleCanvas {
                 // Handle zoom when hovering over a chart
                 if let Some(hovered_id) = self.get_module_at_position(position) {
                     if let Some(module) = self.module_widget.get_mut(&hovered_id) {
-                        if let Some(chart_widget) = module.module_widget.as_any_mut().downcast_mut::<ChartWidget>() {
-                            // Zoom based on Shift key state
-                            // Shift + Scroll = horizontal zoom
-                            // Ctrl + Scroll = vertical zoom
-                            // Just Scroll = both axes zoom
-                            chart_widget.zoom(delta, !self.shift_pressed, !self.shift_pressed);
-                        }
+                        module.zoom(delta, self.shift_pressed, self.ctrl_pressed);
                     }
                 }
             }
@@ -418,6 +415,18 @@ impl ModuleCanvas {
                     if let Some((resize_id, resize_type)) = self.resize_module {
                         println!("Selected module for resizing: {} with type {:?}", resize_id, resize_type);
                     }
+                }
+            }
+            ModuleCanvasMessage::ShiftKeyChanged(is_pressed) => {
+                self.shift_pressed = is_pressed;
+            }
+            ModuleCanvasMessage::CtrlKeyChanged(is_pressed) => {
+                self.ctrl_pressed = is_pressed;
+            }
+            ModuleCanvasMessage::MiddleMouseChanged(is_pressed, _position) => {
+                self.middle_mouse_pressed = is_pressed;
+                if is_pressed {
+                    self.state.last_cursor_position = Some(_position);
                 }
             }
         }
@@ -556,6 +565,18 @@ impl canvas::Program<Message> for ModuleCanvas {
                         ModuleCanvasMessage::RightMousePressed(cursor_position.unwrap_or(Point::ORIGIN))
                     )));
                 }
+                mouse::Event::ButtonPressed(mouse::Button::Middle) => {
+                    return (canvas::event::Status::Captured, 
+                        Some(Message::ModuleCanvasMessage(
+                        ModuleCanvasMessage::MiddleMouseChanged(true, cursor_position.unwrap_or(Point::ORIGIN))
+                    )));
+                }
+                mouse::Event::ButtonReleased(mouse::Button::Middle) => {
+                    return (canvas::event::Status::Captured, 
+                        Some(Message::ModuleCanvasMessage(
+                        ModuleCanvasMessage::MiddleMouseChanged(false, cursor_position.unwrap_or(Point::ORIGIN))
+                    )));
+                }
                 mouse::Event::ButtonReleased(mouse::Button::Left) => {
                     state.left_mouse_button.is_pressed = false;
                     return (
@@ -602,6 +623,24 @@ impl canvas::Program<Message> for ModuleCanvas {
             },
             canvas::Event::Keyboard(keyboard_event) => match keyboard_event {
                 keyboard::Event::KeyPressed { key, .. } => {
+                    if matches!(key, keyboard::Key::Named(keyboard::key::Named::Control)) {
+                        return (
+                            canvas::event::Status::Captured,
+                            Some(Message::ModuleCanvasMessage(
+                                ModuleCanvasMessage::CtrlKeyChanged(true)
+                            )),
+                        );
+                    }
+
+                    if matches!(key, keyboard::Key::Named(keyboard::key::Named::Shift)) {
+                        return (
+                            canvas::event::Status::Captured,
+                            Some(Message::ModuleCanvasMessage(
+                                ModuleCanvasMessage::ShiftKeyChanged(true)
+                            )),
+                        );
+                    }
+                    
                     // Handle 'R' key to reset view of hovered chart
                     if let keyboard::Key::Character(c) = &key {
                         if c.to_lowercase() == "r" {
@@ -614,6 +653,25 @@ impl canvas::Program<Message> for ModuleCanvas {
                                 );
                             }
                         }
+                    }
+                }
+                keyboard::Event::KeyReleased { key, .. } => {
+                    if matches!(key, keyboard::Key::Named(keyboard::key::Named::Control)) {
+                        return (
+                            canvas::event::Status::Captured,
+                            Some(Message::ModuleCanvasMessage(
+                                ModuleCanvasMessage::CtrlKeyChanged(false)
+                            )),
+                        );
+                    }
+
+                    if matches!(key, keyboard::Key::Named(keyboard::key::Named::Shift)) {
+                        return (
+                            canvas::event::Status::Captured,
+                            Some(Message::ModuleCanvasMessage(
+                                ModuleCanvasMessage::ShiftKeyChanged(false)
+                            )),
+                        );
                     }
                 }
                 _ => {}
