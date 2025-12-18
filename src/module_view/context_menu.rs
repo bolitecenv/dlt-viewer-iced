@@ -1,5 +1,6 @@
-use iced::widget::canvas::{self, Canvas};
-use iced::{Color, Element, Length, Point, Rectangle, Renderer, Size, Task, Theme, keyboard, mouse};
+use iced::widget::canvas;
+use iced::alignment::Vertical;
+use iced::{Color, Point, Size};
 
 #[derive(Debug, Clone)]
 pub struct ContextMenu {
@@ -80,7 +81,8 @@ impl ContextMenu {
         }
 
         // Calculate which item was clicked
-        let mut current_y = self.position.y;
+        let padding_top = 4.0;
+        let mut current_y = self.position.y + padding_top;
         
         for item in &self.items {
             if point.y >= current_y && point.y < current_y + self.item_height {
@@ -101,8 +103,9 @@ impl ContextMenu {
     fn calculate_total_height(&self) -> f32 {
         let item_count = self.items.len() as f32;
         let separator_count = self.items.iter().filter(|i| i.separator_after).count() as f32;
+        let padding = 4.0; // Top and bottom padding
         
-        item_count * self.item_height + separator_count * 8.0
+        padding * 2.0 + item_count * self.item_height + separator_count * 8.0
     }
 }
 
@@ -163,13 +166,14 @@ pub fn draw_context_menu(
     );
 
     // Draw menu items
-    let mut current_y = menu.position.y;
+    let padding_top = 4.0;
+    let mut current_y = menu.position.y + padding_top;
     let hovered_action = cursor_position.and_then(|pos| menu.get_action_at(pos));
 
     for item in &menu.items {
         let is_hovered = hovered_action == Some(item.action);
 
-        // Draw hover highlight
+        // Draw hover highlight with proper centering
         if is_hovered {
             let hover_color = if dark_mode {
                 Color::from_rgba(0.3, 0.4, 0.6, 0.4)
@@ -178,8 +182,8 @@ pub fn draw_context_menu(
             };
 
             let item_rect = canvas::Path::rectangle(
-                Point::new(menu.position.x + padding, current_y + 2.0),
-                Size::new(menu.width - padding * 2.0, menu.item_height - 4.0),
+                Point::new(menu.position.x + padding, current_y + 4.0),
+                Size::new(menu.width - padding * 2.0, menu.item_height - 8.0),
             );
             frame.fill(&item_rect, hover_color);
         }
@@ -207,16 +211,17 @@ pub fn draw_context_menu(
             }
         };
 
-        // Draw text label
+        // Draw text label with proper vertical centering
         frame.fill_text(canvas::Text {
             content: item.label.clone(),
             position: Point::new(
                 menu.position.x + padding + 12.0,
-                current_y + menu.item_height / 2.0,
+                current_y + menu.item_height / 2.0 + 1.0, // +1.0 for optical centering
             ),
             color: text_color,
             size: 14.0.into(),
             font: iced::Font::default(),
+            align_y: Vertical::Center,
             ..canvas::Text::default()
         });
 

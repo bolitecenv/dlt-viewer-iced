@@ -1,5 +1,6 @@
-use iced::widget::canvas::{self, Canvas};
-use iced::{Color, Element, Length, Point, Rectangle, Renderer, Size, Task, Theme, keyboard, mouse};
+use iced::Alignment::Center;
+use iced::widget::canvas;
+use iced::{Color, Point};
 
 #[derive(Debug, Clone)]
 pub struct CircularContextMenu {
@@ -73,7 +74,7 @@ impl CircularContextMenu {
         Self { position, items, target_module }
     }
 
-    pub fn get_action_at(&self, point: Point, radius: f32) -> Option<CircularContextMenuAction> {
+    pub fn get_action_at(&self, point: Point, _radius: f32) -> Option<CircularContextMenuAction> {
         let dx = point.x - self.position.x;
         let dy = point.y - self.position.y;
 
@@ -254,6 +255,8 @@ pub fn draw_circular_context_menu(
             color: text_color,
             size: if is_hovered { 15.0 } else { 13.5 }.into(),
             font: iced::Font::with_name("SF Pro Display"),
+            align_x: Center.into(),
+            align_y: Center.into(),
             ..canvas::Text::default()
         });
     }
