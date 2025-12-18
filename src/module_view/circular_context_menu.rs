@@ -253,8 +253,6 @@ pub fn draw_circular_context_menu(
             position: Point::new(text_x, text_y),
             color: text_color,
             size: if is_hovered { 15.0 } else { 13.5 }.into(),
-            horizontal_alignment: iced::alignment::Horizontal::Center,
-            vertical_alignment: iced::alignment::Vertical::Center,
             font: iced::Font::with_name("SF Pro Display"),
             ..canvas::Text::default()
         });

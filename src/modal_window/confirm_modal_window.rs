@@ -5,7 +5,6 @@ use crate::modal_window::modal_window::{ModalConfig, ModalWindowMessage, ModalWi
 use crate::message::Message;
 use crate::module_view::ModuleWidget;
 use iced::Task;
-use iced::advanced::graphics::text::cosmic_text::ttf_parser::Width;
 use iced::widget::text_input;
 use iced::{
     Color, Element, Length,
@@ -14,10 +13,11 @@ use iced::{
     },
 };
 use serde::{Deserialize, Serialize};
-use bincode::{Decode, Encode};
+use bincode::{Encode, Decode, encode_to_vec, decode_from_slice, config};
+use bincode::error::{EncodeError, DecodeError};
 
 // Confirmation dialog modal
-#[derive(Debug, Clone, Encode, Decode, Serialize, Deserialize)]
+#[derive(Debug, Clone, Encode, Decode)]
 pub enum ConfirmMessage {
     Confirm,
     Cancel,

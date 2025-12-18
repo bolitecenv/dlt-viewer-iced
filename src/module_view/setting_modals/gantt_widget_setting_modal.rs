@@ -3,7 +3,7 @@ use crate::message::Message;
 use crate::modal_window::modal_window::{ModalConfig, deserialize_message, serialize_message};
 use crate::module_view::setting_modals::setting_modal_window::{SettingModal, SettingModalMessage};
 use crate::module_view::{GanttChartWidget, ModuleWidget};
-use bincode::{Decode, Encode};
+use serde::{Deserialize, Serialize};
 use iced::Task;
 use iced::{
     Color, Element, Length, Theme,
@@ -12,6 +12,8 @@ use iced::{
     }
 };
 use std::any::Any;
+use bincode::{Encode, Decode, encode_to_vec, decode_from_slice, config};
+use bincode::error::{EncodeError, DecodeError};
 
 #[derive(Debug, Clone, Encode, Decode)]
 pub enum GanttModalMessage {
@@ -84,7 +86,7 @@ impl SettingModal for GanttWidgetModal {
             .spacing(10)
             .align_y(iced::alignment::Vertical::Center),
 
-            Space::new(Length::Shrink, Length::Fixed(15.0)),
+            Space::new().width(Length::Shrink).height(Length::Fixed(15.0)),
 
             // X Axis Label
             row![
@@ -97,11 +99,11 @@ impl SettingModal for GanttWidgetModal {
             .spacing(10)
             .align_y(iced::alignment::Vertical::Center),
 
-            Space::new(Length::Shrink, Length::Fixed(20.0)),
+            Space::new().width(Length::Shrink).height(Length::Fixed(20.0)),
 
             text("Regex Pattern for Gantt Data Extraction").size(16).color(text_color),
 
-            Space::new(Length::Shrink, Length::Fixed(10.0)),
+            Space::new().width(Length::Shrink).height(Length::Fixed(10.0)),
 
             row![
                 text("Regex Pattern:").size(14).color(label_color).width(Length::Fixed(120.0)),
@@ -113,12 +115,12 @@ impl SettingModal for GanttWidgetModal {
             .spacing(10)
             .align_y(iced::alignment::Vertical::Center),
 
-            Space::new(Length::Shrink, Length::Fixed(20.0)),
+            Space::new().width(Length::Shrink).height(Length::Fixed(20.0)),
 
             // Display Options Section
             text("Display Options").size(16).color(text_color),
-            
-            Space::new(Length::Shrink, Length::Fixed(10.0)),
+
+            Space::new().width(Length::Shrink).height(Length::Fixed(10.0)),
 
             // Row Height
             row![
@@ -131,7 +133,7 @@ impl SettingModal for GanttWidgetModal {
             .spacing(10)
             .align_y(iced::alignment::Vertical::Center),
 
-            Space::new(Length::Shrink, Length::Fixed(10.0)),
+            Space::new().width(Length::Shrink).height(Length::Fixed(10.0)),
 
             // Bar Height
             row![
@@ -144,27 +146,27 @@ impl SettingModal for GanttWidgetModal {
             .spacing(10)
             .align_y(iced::alignment::Vertical::Center),
 
-            Space::new(Length::Shrink, Length::Fixed(10.0)),
+            Space::new().width(Length::Shrink).height(Length::Fixed(10.0)),
 
             // Toggle Grid
             row![
-                checkbox("Show Grid", self.gantt_widget.settings.show_grid)
-                    .on_toggle(|_| Self::create_custom_message(GanttModalMessage::ToggleGrid))
-                    .size(14),
+                text("Show Grid").size(14).color(label_color).width(Length::Fixed(120.0)),
+                checkbox(self.gantt_widget.settings.show_grid)
+                    .on_toggle(|_| Self::create_custom_message(GanttModalMessage::ToggleGrid)),
             ]
             .spacing(10),
 
-            Space::new(Length::Shrink, Length::Fixed(10.0)),
+            Space::new().width(Length::Shrink).height(Length::Fixed(10.0)),
 
             // Toggle Labels
             row![
-                checkbox("Show Labels", self.gantt_widget.settings.show_labels)
-                    .on_toggle(|_| Self::create_custom_message(GanttModalMessage::ToggleLabels))
-                    .size(14),
+                text("Show Labels").size(14).color(label_color).width(Length::Fixed(120.0)),
+                checkbox(self.gantt_widget.settings.show_labels)
+                    .on_toggle(|_| Self::create_custom_message(GanttModalMessage::ToggleLabels)),
             ]
             .spacing(10),
 
-            Space::new(Length::Shrink, Length::Fixed(15.0)),
+            Space::new().width(Length::Shrink).height(Length::Fixed(15.0)),
         ]
         .spacing(5)
         .padding(20)

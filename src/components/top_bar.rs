@@ -1,7 +1,7 @@
 use crate::{app::ICON_FONT, message::Message};
 use iced::{
     Alignment, Color, Element, Length, Theme,
-    widget::{button, container, horizontal_space, row, text},
+    widget::{Space, button, container, row, text},
 };
 
 pub fn view(dark_mode: bool) -> Element<'static, Message> {
@@ -51,7 +51,7 @@ pub fn view(dark_mode: bool) -> Element<'static, Message> {
             } else {
                 Color::BLACK
             }),
-            horizontal_space(),
+            Space::new().width(Length::Fill).height(Length::Shrink),
             theme_button,
             settings_button,
         ]

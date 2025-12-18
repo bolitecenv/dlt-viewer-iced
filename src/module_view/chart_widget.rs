@@ -1,6 +1,7 @@
 use crate::module_view::module_widget::{
     MIN_CHART_HEIGHT, MIN_CHART_WIDTH, ModuleWidgetWindow, ModuleWidgetWindowView, WidgetData
 };
+use crate::module_view::setting_modals::chart_widget_setting_modal::ChartWidgetModal;
 use iced::widget::canvas;
 use iced::{Color, Point, Rectangle, Size};
 use std::any::Any;
@@ -63,6 +64,15 @@ impl ModuleWidgetWindowView for ChartWidget {
 
     fn pan(&mut self, delta_x: f32, delta_y: f32) {
         self.pan(delta_x, delta_y);
+    }
+
+    fn open_settings_modal(&self, id: u32, dlt_regex_item: crate::components::dlt_data_manager::DltDataRegexItem) -> Option<Box<dyn super::setting_modals::setting_modal_window::SettingModal>> {
+        Some(Box::new(ChartWidgetModal::new(
+            id,
+            self.window.title.clone(),
+            dlt_regex_item,
+            self.clone(),
+        )))
     }
 
     fn clone_box(&self) -> Box<dyn ModuleWidgetWindowView> {

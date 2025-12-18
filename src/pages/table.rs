@@ -5,7 +5,11 @@ use iced::{
     border::Radius,
     widget::{Space, button, column, container, row, scrollable, text},
 };
+use iced::widget::lazy;
 use dlt_format_parser::DltFormat;
+
+// Number of rows to render at once (adjust based on performance needs)
+const VISIBLE_ROWS: usize = 100;
 
 #[derive(Debug, Clone)]
 pub struct DltMessageRow {
@@ -73,7 +77,7 @@ pub fn view<'a>(
                         Color::from_rgb(0.1, 0.1, 0.1)
                     }),
                 }),
-            Space::with_height(Length::Fixed(4.0)),
+            Space::new().height(Length::Fixed(4.0)),
             text::<Theme, _>(format!("Total messages: {}", messages.len()))
                 .size(14)
                 .style(|theme: &Theme| text::Style {
@@ -132,6 +136,7 @@ pub fn view<'a>(
                         offset: iced::Vector::new(0.0, 2.0),
                         blur_radius: 8.0,
                     },
+                    ..Default::default()
                 };
 
                 match status {
@@ -171,7 +176,12 @@ pub fn view<'a>(
         left: 0.0,
     });
 
-    let table_card = create_table_card(dark_mode, messages);
+    // Use lazy widget to prevent unnecessary rebuilds
+    let table_card = lazy(
+        (messages.len(), dark_mode),
+        // Clone messages into the closure so it owns the data (removes non-'static borrow)
+        move |_| create_table_card(dark_mode, messages.to_owned())
+    );
 
     let content = column![
         page_header,
@@ -198,24 +208,21 @@ pub fn view<'a>(
         })
         .into()
 }
-
-fn create_table_card<'a>(
+fn create_table_card(
     dark_mode: bool,
-    messages: &'a [DltMessageRow],
-) -> Element<'a, Message> {
-    let theme = if dark_mode { Theme::Dark } else { Theme::Light };
-    
+    messages: Vec<DltMessageRow>,
+) -> Element<'static, Message> {
     // Table header
     let header = container(
         row![
-            header_cell("#", 60.0),
-            header_cell("Timestamp", 140.0),
-            header_cell("ECU", 70.0),
-            header_cell("App ID", 70.0),
-            header_cell("Context", 70.0),
-            header_cell("Type", 90.0),
-            header_cell("Length", 70.0),
-            header_cell("Payload", 400.0),
+            header_cell("#", 60.0, dark_mode),
+            header_cell("Timestamp", 140.0, dark_mode),
+            header_cell("ECU", 70.0, dark_mode),
+            header_cell("App ID", 70.0, dark_mode),
+            header_cell("Context", 70.0, dark_mode),
+            header_cell("Type", 90.0, dark_mode),
+            header_cell("Length", 70.0, dark_mode),
+            header_cell("Payload", 400.0, dark_mode),
         ]
         .spacing(8)
         .padding(Padding {
@@ -252,7 +259,7 @@ fn create_table_card<'a>(
         ..Default::default()
     });
 
-    // Table rows
+    // Table rows - Virtual scrolling: only render recent messages
     let mut table_rows = column![].spacing(0);
     
     if messages.is_empty() {
@@ -267,7 +274,7 @@ fn create_table_card<'a>(
                             Color::from_rgb(0.6, 0.6, 0.6)
                         }),
                     }),
-                Space::with_height(Length::Fixed(8.0)),
+                Space::new().height(Length::Fixed(8.0)),
                 text::<Theme, _>("Connect to a TCP server to receive DLT messages")
                     .size(13)
                     .style(|theme: &Theme| text::Style {
@@ -292,8 +299,62 @@ fn create_table_card<'a>(
         
         table_rows = table_rows.push(empty_state);
     } else {
-        for msg in messages.iter() {
-            let row_widget = create_table_row(msg, dark_mode);
+        // Virtual scrolling: only render the last VISIBLE_ROWS messages
+        let start_idx = messages.len().saturating_sub(VISIBLE_ROWS);
+        
+        // Show indicator if there are more messages
+        if start_idx > 0 {
+            let indicator_color = if dark_mode {
+                Color::from_rgb(0.5, 0.5, 0.5)
+            } else {
+                Color::from_rgb(0.6, 0.6, 0.6)
+            };
+            
+            let older_indicator = container(
+                text::<Theme, _>(format!("+ {} older messages not shown (showing last {})", start_idx, VISIBLE_ROWS))
+                    .size(11)
+                    .color(indicator_color)
+            )
+            .padding(Padding {
+                top: 8.0,
+                right: 16.0,
+                bottom: 8.0,
+                left: 16.0,
+            })
+            .width(Length::Fill)
+            .center_x(Length::Fill);
+            
+            table_rows = table_rows.push(older_indicator);
+        }
+        
+        // Pre-compute colors for better performance
+        let text_color = if dark_mode {
+            Color::from_rgb(0.85, 0.85, 0.85)
+        } else {
+            Color::from_rgb(0.2, 0.2, 0.2)
+        };
+        
+        let even_bg = if dark_mode {
+            Color::from_rgb(0.12, 0.12, 0.13)
+        } else {
+            Color::WHITE
+        };
+        
+        let odd_bg = if dark_mode {
+            Color::from_rgb(0.14, 0.14, 0.15)
+        } else {
+            Color::from_rgb(0.98, 0.98, 0.99)
+        };
+        
+        let border_color = if dark_mode {
+            Color::from_rgba(1.0, 1.0, 1.0, 0.03)
+        } else {
+            Color::from_rgba(0.0, 0.0, 0.0, 0.03)
+        };
+        
+        // Render only visible messages
+        for msg in messages.iter().skip(start_idx) {
+            let row_widget = create_table_row(msg, text_color, even_bg, odd_bg, border_color);
             table_rows = table_rows.push(row_widget);
         }
     }
@@ -337,43 +398,54 @@ fn create_table_card<'a>(
         })
         .into()
 }
-
-fn header_cell<'a>(label: &'static str, width: f32) -> Element<'a, Message> {
+fn header_cell(label: &'static str, width: f32, dark_mode: bool) -> Element<'static, Message> {
+    let color = if dark_mode {
+        Color::from_rgb(0.8, 0.8, 0.8)
+    } else {
+        Color::from_rgb(0.3, 0.3, 0.3)
+    };
+    
     container(
         text::<Theme, _>(label)
             .size(13)
-            .style(|theme: &Theme| text::Style {
-                color: Some(if matches!(theme, Theme::Dark) {
-                    Color::from_rgb(0.8, 0.8, 0.8)
-                } else {
-                    Color::from_rgb(0.3, 0.3, 0.3)
-                }),
-            }),
+            .color(color)
     )
     .width(Length::Fixed(width))
     .into()
 }
 
-fn create_table_row<'a>(
-    msg: &'a DltMessageRow,
-    dark_mode: bool,
-) -> Element<'a, Message> {
+fn create_table_row(
+    msg: &DltMessageRow,
+    text_color: Color,
+    even_bg: Color,
+    odd_bg: Color,
+    border_color: Color,
+) -> Element<'static, Message> {
     let is_even = msg.index % 2 == 0;
     
-    // Create owned strings for numeric values
+    // Create owned strings for numeric and text values
     let index_str = msg.index.to_string();
     let length_str = msg.length.to_string();
+    let timestamp = msg.timestamp.clone();
+    let ecu_id = msg.ecu_id.clone();
+    let app_id = msg.app_id.clone();
+    let context_id = msg.context_id.clone();
+    let message_type = msg.message_type.clone();
+    let payload = msg.payload.clone();
+    
+    // Pre-compute background color
+    let bg_color = if is_even { even_bg } else { odd_bg };
     
     container(
         row![
-            table_cell_owned(index_str, 60.0),
-            table_cell(&msg.timestamp, 140.0),
-            table_cell(&msg.ecu_id, 70.0),
-            table_cell(&msg.app_id, 70.0),
-            table_cell(&msg.context_id, 70.0),
-            table_cell(&msg.message_type, 90.0),
-            table_cell_owned(length_str, 70.0),
-            table_cell(&msg.payload, 400.0),
+            table_cell_optimized(index_str, 60.0, text_color),
+            table_cell_optimized(timestamp, 140.0, text_color),
+            table_cell_optimized(ecu_id, 70.0, text_color),
+            table_cell_optimized(app_id, 70.0, text_color),
+            table_cell_optimized(context_id, 70.0, text_color),
+            table_cell_optimized(message_type, 90.0, text_color),
+            table_cell_optimized(length_str, 70.0, text_color),
+            table_cell_optimized(payload, 400.0, text_color),
         ]
         .spacing(8)
         .padding(Padding {
@@ -384,29 +456,11 @@ fn create_table_row<'a>(
         }),
     )
     .width(Length::Fill)
-    .style(move |theme: &Theme| {
-        let bg_color = if matches!(theme, Theme::Dark) {
-            if is_even {
-                Color::from_rgb(0.12, 0.12, 0.13)
-            } else {
-                Color::from_rgb(0.14, 0.14, 0.15)
-            }
-        } else {
-            if is_even {
-                Color::WHITE
-            } else {
-                Color::from_rgb(0.98, 0.98, 0.99)
-            }
-        };
-
+    .style(move |_theme: &Theme| {
         container::Style {
             background: Some(bg_color.into()),
             border: Border {
-                color: if matches!(theme, Theme::Dark) {
-                    Color::from_rgba(1.0, 1.0, 1.0, 0.03)
-                } else {
-                    Color::from_rgba(0.0, 0.0, 0.0, 0.03)
-                },
+                color: border_color,
                 width: 0.0,
                 radius: Radius::from(0.0),
             },
@@ -416,33 +470,12 @@ fn create_table_row<'a>(
     .into()
 }
 
-fn table_cell<'a>(content: &'a str, width: f32) -> Element<'a, Message> {
+// Optimized table cell that accepts an owned String so widgets own their data
+fn table_cell_optimized(content: String, width: f32, text_color: Color) -> Element<'static, Message> {
     container(
         text::<Theme, _>(content)
             .size(12)
-            .style(|theme: &Theme| text::Style {
-                color: Some(if matches!(theme, Theme::Dark) {
-                    Color::from_rgb(0.85, 0.85, 0.85)
-                } else {
-                    Color::from_rgb(0.2, 0.2, 0.2)
-                }),
-            }),
-    )
-    .width(Length::Fixed(width))
-    .into()
-}
-
-fn table_cell_owned<'a>(content: String, width: f32) -> Element<'a, Message> {
-    container(
-        text::<Theme, _>(content)
-            .size(12)
-            .style(|theme: &Theme| text::Style {
-                color: Some(if matches!(theme, Theme::Dark) {
-                    Color::from_rgb(0.85, 0.85, 0.85)
-                } else {
-                    Color::from_rgb(0.2, 0.2, 0.2)
-                }),
-            }),
+            .color(text_color)
     )
     .width(Length::Fixed(width))
     .into()

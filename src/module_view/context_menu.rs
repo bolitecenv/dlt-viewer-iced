@@ -216,8 +216,6 @@ pub fn draw_context_menu(
             ),
             color: text_color,
             size: 14.0.into(),
-            horizontal_alignment: iced::alignment::Horizontal::Left,
-            vertical_alignment: iced::alignment::Vertical::Center,
             font: iced::Font::default(),
             ..canvas::Text::default()
         });

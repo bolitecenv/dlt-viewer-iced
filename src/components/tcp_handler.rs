@@ -3,6 +3,7 @@ use crate::pages::table::DltMessageRow;
 use crate::types::{FrontDltAppIdItem, FrontDltCtxIdItem, FrontDltEcuItem};
 
 use std::collections::HashMap;
+use std::ops::Sub;
 use std::time::Duration;
 
 use dlt_format_parser::{
@@ -37,26 +38,39 @@ const RECONNECT_DELAY_SECS: u64 = 5;
 // Public API
 // ============================================================================
 
-pub fn tcp_connection_subscription(ip: String, port: String) -> Subscription<Message> {
-    let subscription_id = format!("tcp-dlt-{}-{}", ip, port);
+use futures::StreamExt; // for unfold
+use std::hash::Hash;
 
-    Subscription::run_with_id(
-        subscription_id,
+#[derive(Debug, Hash, PartialEq, Eq)]
+struct ConnectionConfig {
+    ip: String,
+    port: String,
+}
+
+pub fn tcp_connection_subscription(ip: String, port: String) -> Subscription<Message> {
+    let config = ConnectionConfig { ip, port };
+
+    // run_with takes:
+    // 1. The data (must be Hash + Send + 'static)
+    // 2. A function pointer (NOT a capturing closure) that takes &Data
+    Subscription::run_with(config, |config| {
+        let addr = format!("{}:{}", config.ip, config.port);
+        
         futures::stream::unfold(
             ConnectionState::Disconnected,
             move |state| {
-                let addr = format!("{}:{}", ip, port);
+                let addr = addr.clone();
                 async move {
-                    let result = handle_connection_state(state, addr.clone()).await;
-
-                    // Always wait before the next iteration, even on failure
-                    sleep(Duration::from_secs(1)).await;
+                    let result = handle_connection_state(state, addr).await;
+                    
+                    // Always wait before the next iteration
+                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
                     result
                 }
             },
-        ),
-    )
+        )
+    })
 }
 
 // ============================================================================

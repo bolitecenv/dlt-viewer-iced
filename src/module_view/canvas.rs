@@ -1,4 +1,5 @@
 use crate::components::dlt_data_manager::DltDataRegexItem;
+use crate::message;
 use crate::message::Message;
 use crate::modal_window::confirm_modal_window::ConfirmModal;
 use crate::modal_window::modal_window::ModalWindowView;
@@ -13,15 +14,11 @@ use crate::module_view::gantt_chart_widget::GanttSettings;
 use crate::module_view::meter_widget::MeterSettings;
 use crate::module_view::meter_widget::MeterWidget;
 use crate::module_view::module_widget::*;
-use crate::module_view::setting_modals::chart_widget_setting_modal::ChartWidgetModal;
-use crate::module_view::setting_modals::gantt_widget_setting_modal::GanttWidgetModal;
-use iced::advanced::graphics::core::window;
-use iced::keyboard::Key;
-use iced::keyboard::Location;
+use iced::widget::Action;
 use iced::widget::canvas::{self, Canvas};
-use iced::widget::shader::wgpu::naga::Module;
-use iced::{Color, Element, Length, Point, Rectangle, Renderer, Size, Task, Theme, keyboard, mouse};
+use iced::{Color, Element, Length, Point, Rectangle, Renderer, Task, Theme, keyboard, mouse};
 use std::collections::HashMap;
+use iced::event::Status;
 
 pub const GRID_SIZE: f32 = 50.0;
 pub const SNAP_THRESHOLD: f32 = 10.0;
@@ -529,64 +526,51 @@ impl canvas::Program<Message> for ModuleCanvas {
     fn update(
         &self,
         state: &mut Self::State,
-        event: canvas::Event,
+        event: &iced::Event,
         bounds: Rectangle,
         cursor: mouse::Cursor,
-    ) -> (canvas::event::Status, Option<Message>) {
+    ) -> Option<Action<message::Message>> {
         let cursor_position = cursor.position_in(bounds);
 
         match event {
-            canvas::Event::Mouse(mouse_event) => match mouse_event {
+            iced::Event::Mouse(mouse_event) => match mouse_event {
                 mouse::Event::ButtonPressed(mouse::Button::Left) => {
                     state.left_mouse_button.is_pressed = true;
-                    return (canvas::event::Status::Captured, 
-                        Some(Message::ModuleCanvasMessage(
+                    return Some(Action::publish(Message::ModuleCanvasMessage(
                         ModuleCanvasMessage::LeftMousePressed(cursor_position.unwrap_or(Point::ORIGIN))
                     )));
                 }
                 mouse::Event::ButtonPressed(mouse::Button::Right) => {
-                    return (canvas::event::Status::Captured, 
-                        Some(Message::ModuleCanvasMessage(
+                    return Some(Action::publish(Message::ModuleCanvasMessage(
                         ModuleCanvasMessage::RightMousePressed(cursor_position.unwrap_or(Point::ORIGIN))
                     )));
                 }
                 mouse::Event::ButtonPressed(mouse::Button::Middle) => {
-                    return (canvas::event::Status::Captured, 
-                        Some(Message::ModuleCanvasMessage(
+                    return Some(Action::publish(Message::ModuleCanvasMessage(
                         ModuleCanvasMessage::MiddleMouseChanged(true, cursor_position.unwrap_or(Point::ORIGIN))
                     )));
                 }
                 mouse::Event::ButtonReleased(mouse::Button::Middle) => {
-                    return (canvas::event::Status::Captured, 
-                        Some(Message::ModuleCanvasMessage(
+                    return Some(Action::publish(Message::ModuleCanvasMessage(
                         ModuleCanvasMessage::MiddleMouseChanged(false, cursor_position.unwrap_or(Point::ORIGIN))
                     )));
                 }
                 mouse::Event::ButtonReleased(mouse::Button::Left) => {
                     state.left_mouse_button.is_pressed = false;
-                    return (
-                        canvas::event::Status::Captured,
-                        Some(Message::ModuleCanvasMessage(
-                            ModuleCanvasMessage::LeftMouseReleased(
-                                cursor_position.unwrap_or(Point::ORIGIN)
-                            )
-                        ),
-                    ));
+                    return Some(Action::publish(Message::ModuleCanvasMessage(
+                        ModuleCanvasMessage::LeftMouseReleased(
+                            cursor_position.unwrap_or(Point::ORIGIN)
+                        )
+                    )));
                 }
                 mouse::Event::ButtonReleased(mouse::Button::Right) => {
-                    return (
-                        canvas::event::Status::Captured,
-                        Some(Message::ModuleCanvasMessage(
-                            ModuleCanvasMessage::RightMouseReleased(cursor_position.unwrap_or(Point::ORIGIN))
-                        )),
-                    );            
+                    return Some(Action::publish(Message::ModuleCanvasMessage(
+                        ModuleCanvasMessage::RightMouseReleased(cursor_position.unwrap_or(Point::ORIGIN))
+                    )));
                 }
                 mouse::Event::CursorMoved { .. } => {
                     if let Some(position) = cursor_position {
-                        return (
-                            canvas::event::Status::Captured,
-                            Some(Message::ModuleCanvasMessage(ModuleCanvasMessage::Move(position))),
-                        );
+                        return Some(Action::publish(Message::ModuleCanvasMessage(ModuleCanvasMessage::Move(position))));
                     }
                 }
                 mouse::Event::WheelScrolled { delta } => {
@@ -594,14 +578,11 @@ impl canvas::Program<Message> for ModuleCanvas {
                     if let Some(position) = cursor_position {
                         let scroll_delta = match delta {
                             mouse::ScrollDelta::Lines { y, .. } => y,
-                            mouse::ScrollDelta::Pixels { y, .. } => y / 10.0,
+                            mouse::ScrollDelta::Pixels { y, .. } => &(y / 10.0),
                         };
-                        return (
-                            canvas::event::Status::Captured,
-                            Some(Message::ModuleCanvasMessage(
-                                ModuleCanvasMessage::MouseWheel(scroll_delta, position)
-                            )),
-                        );
+                        return Some(Action::publish(Message::ModuleCanvasMessage(
+                            ModuleCanvasMessage::MouseWheel(*scroll_delta, position)
+                        )));
                     }
                 }
                 _ => {}
@@ -609,61 +590,46 @@ impl canvas::Program<Message> for ModuleCanvas {
             canvas::Event::Keyboard(keyboard_event) => match keyboard_event {
                 keyboard::Event::KeyPressed { key, .. } => {
                     if matches!(key, keyboard::Key::Named(keyboard::key::Named::Control)) {
-                        return (
-                            canvas::event::Status::Captured,
-                            Some(Message::ModuleCanvasMessage(
-                                ModuleCanvasMessage::CtrlKeyChanged(true)
-                            )),
-                        );
+                        return Some(Action::publish(Message::ModuleCanvasMessage(
+                            ModuleCanvasMessage::CtrlKeyChanged(true)
+                        )));
                     }
 
                     if matches!(key, keyboard::Key::Named(keyboard::key::Named::Shift)) {
-                        return (
-                            canvas::event::Status::Captured,
-                            Some(Message::ModuleCanvasMessage(
-                                ModuleCanvasMessage::ShiftKeyChanged(true)
-                            )),
-                        );
+                        return Some(Action::publish(Message::ModuleCanvasMessage(
+                            ModuleCanvasMessage::ShiftKeyChanged(true)
+                        )));
                     }
                     
                     // Handle 'R' key to reset view of hovered chart
                     if let keyboard::Key::Character(c) = &key {
                         if c.to_lowercase() == "r" {
                             if let Some(hovered_id) = self.hovered_module {
-                                return (
-                                    canvas::event::Status::Captured,
-                                    Some(Message::ModuleCanvasMessage(
-                                        ModuleCanvasMessage::ResetChartView(hovered_id)
-                                    )),
-                                );
+                                return Some(Action::publish(Message::ModuleCanvasMessage(
+                                    ModuleCanvasMessage::ResetChartView(hovered_id)
+                                )));
                             }
                         }
                     }
                 }
                 keyboard::Event::KeyReleased { key, .. } => {
                     if matches!(key, keyboard::Key::Named(keyboard::key::Named::Control)) {
-                        return (
-                            canvas::event::Status::Captured,
-                            Some(Message::ModuleCanvasMessage(
-                                ModuleCanvasMessage::CtrlKeyChanged(false)
-                            )),
-                        );
+                        return Some(Action::publish(Message::ModuleCanvasMessage(
+                            ModuleCanvasMessage::CtrlKeyChanged(false)
+                        )));
                     }
 
                     if matches!(key, keyboard::Key::Named(keyboard::key::Named::Shift)) {
-                        return (
-                            canvas::event::Status::Captured,
-                            Some(Message::ModuleCanvasMessage(
-                                ModuleCanvasMessage::ShiftKeyChanged(false)
-                            )),
-                        );
+                        return Some(Action::publish(Message::ModuleCanvasMessage(
+                            ModuleCanvasMessage::ShiftKeyChanged(false)
+                        )));
                     }
                 }
                 _ => {}
             },
             _ => {}
         }
-        (canvas::event::Status::Ignored, None)
+        None
     }
 
     fn mouse_interaction(

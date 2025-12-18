@@ -316,6 +316,10 @@ impl Dashboard {
 }
 
 impl Dashboard {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     fn get_context(&self) -> DashboardContext<'_> {
         DashboardContext {
             ecu_list: &self.ecu_list,

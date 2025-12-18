@@ -24,7 +24,7 @@ pub fn view<'a>(
                         Color::from_rgb(0.1, 0.1, 0.1)
                     }),
                 }),
-            Space::with_height(Length::Fixed(4.0)),
+            Space::new().height(8.0),
             text::<Theme, _>("Customize your application preferences")
                 .size(14)
                 .style(|theme: &Theme| text::Style {
@@ -50,7 +50,7 @@ pub fn view<'a>(
         column![setting_row(
             "Dark Mode",
             "Switch between light and dark theme",
-            checkbox("", dark_mode)
+            checkbox(dark_mode)
                 .on_toggle(|_| Message::ToggleTheme)
                 .into()
         ),]
@@ -71,7 +71,7 @@ pub fn view<'a>(
                     .size(14)
                     .into() // Added .into()
             ),
-            Space::with_height(Length::Fixed(16.0)),
+            Space::new().height(Length::Fixed(16.0)),
             input_field_with_icon(
                 "Port",
                 "Enter server port number",
@@ -81,7 +81,7 @@ pub fn view<'a>(
                     .size(14)
                     .into() // Added .into()
             ),
-            Space::with_height(Length::Fixed(20.0)),
+            Space::new().height(Length::Fixed(20.0)),
             connection_section(connection_status),
         ]
         .spacing(0)
@@ -121,7 +121,7 @@ fn create_card<'a>(
             // Card header
             column![
                 text::<Theme, _>(title).size(18),
-                Space::with_height(Length::Fixed(4.0)),
+                Space::new().height(4.0),
                 text::<Theme, _>(description)
                     .size(13)
                     .style(|theme: &Theme| text::Style {
@@ -183,7 +183,7 @@ fn setting_row<'a>(
         row![
             column![
                 text::<Theme, _>(label).size(14),
-                Space::with_height(Length::Fixed(4.0)),
+                Space::new().height(4.0),
                 text::<Theme, _>(description)
                     .size(12)
                     .style(|theme: &Theme| text::Style {
@@ -195,7 +195,7 @@ fn setting_row<'a>(
                     }),
             ]
             .spacing(0),
-            Space::with_width(Length::Fill),
+            Space::new().width(Length::Fill),
             container(control).center_y(Length::Shrink), // Added Length::Shrink parameter
         ]
         .align_y(iced::alignment::Vertical::Center) // Changed from align_items to align_y
@@ -226,7 +226,7 @@ fn input_field_with_icon<'a>(
                     Color::from_rgb(0.2, 0.2, 0.2)
                 }),
             }),
-        Space::with_height(Length::Fixed(8.0)),
+        Space::new().height(8.0),
         container(input)
             .width(Length::Fill)
             .style(|theme: &Theme| container::Style {
@@ -295,6 +295,7 @@ fn connection_section(status: &str) -> Element<'_, Message> {
                             offset: iced::Vector::new(0.0, 2.0),
                             blur_radius: 8.0,
                         },
+                        ..Default::default()
                     };
 
                     match status {
@@ -324,11 +325,11 @@ fn connection_section(status: &str) -> Element<'_, Message> {
                     }
                 })
             ),
-            Space::with_width(Length::Fixed(16.0)),
+            Space::new().width(8.0),
             container(
                 row![
                     connection_status_indicator(status),
-                    Space::with_width(Length::Fixed(8.0)),
+                    Space::new().width(8.0),
                     text::<Theme, _>(status)
                         .size(13)
                         .style(|theme: &Theme| text::Style {
@@ -357,7 +358,7 @@ fn connection_status_indicator(status: &str) -> Element<'_, Message> {
         Color::from_rgb(0.6, 0.6, 0.6)
     };
 
-    container(Space::with_width(Length::Fixed(0.0)))
+    container(Space::new().width(Length::Fixed(0.0)))
         .width(Length::Fixed(8.0))
         .height(Length::Fixed(8.0))
         .style(move |_theme: &Theme| container::Style {

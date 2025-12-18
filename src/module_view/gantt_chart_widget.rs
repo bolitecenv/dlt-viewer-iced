@@ -79,6 +79,10 @@ impl ModuleWidgetWindowView for GanttChartWidget {
         self.zoom_gantt_impl(delta, shift_pressed, ctrl_pressed);
     }
 
+    fn pan(&mut self, delta_x: f32, delta_y: f32) {
+        self.pan(delta_x, delta_y);
+    }
+
     fn open_settings_modal(&self, id: u32, dlt_regex_item: DltDataRegexItem) -> Option<Box<dyn super::setting_modals::setting_modal_window::SettingModal>> {
         Some(Box::new(GanttWidgetModal::new(
             id,
@@ -180,8 +184,8 @@ impl GanttChartWidget {
     }
 
     pub fn pan(&mut self, delta_x: f32, delta_y: f32) {
-        self.pan_offset_x += delta_x;
-        self.pan_offset_y += delta_y;
+        self.pan_offset_x = delta_x;
+        self.pan_offset_y = delta_y;
     }
 
     pub fn zoom_gantt_impl(&mut self, delta: f32, zoom_x: bool, zoom_y: bool) {

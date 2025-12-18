@@ -4,7 +4,7 @@ use crate::modal_window::modal_window::{ModalConfig, ModalWindowMessage, ModalWi
 use crate::module_view::module_widget::ModuleWidgetWindowView;
 use crate::module_view::setting_modals::setting_modal_window::{SettingModal, SettingModalMessage};
 use crate::module_view::{ChartWidget, ModuleWidget};
-use bincode::{Decode, Encode};
+use serde::{Deserialize, Serialize};
 use iced::Task;
 use iced::{
     Color, Element, Length, Theme,
@@ -13,7 +13,8 @@ use iced::{
     }
 };
 use std::any::Any;
-use std::str::FromStr;
+use bincode::{Encode, Decode, encode_to_vec, decode_from_slice, config};
+use bincode::error::{EncodeError, DecodeError};
 
 #[derive(Debug, Clone, Encode, Decode)]
 pub enum ChartModalMessage {
@@ -85,7 +86,7 @@ impl SettingModal for ChartWidgetModal {
             .spacing(10)
             .align_y(iced::alignment::Vertical::Center),
 
-            Space::new(Length::Shrink, Length::Fixed(15.0)),
+            Space::new().width(Length::Shrink).height(Length::Fixed(15.0)),
 
             // X Axis Label
             row![
@@ -98,7 +99,7 @@ impl SettingModal for ChartWidgetModal {
             .spacing(10)
             .align_y(iced::alignment::Vertical::Center),
 
-            Space::new(Length::Shrink, Length::Fixed(15.0)),
+            Space::new().width(Length::Shrink).height(Length::Fixed(15.0)),
 
             // Y Axis Label
             row![
@@ -111,11 +112,11 @@ impl SettingModal for ChartWidgetModal {
             .spacing(10)
             .align_y(iced::alignment::Vertical::Center),
 
-            Space::new(Length::Shrink, Length::Fixed(20.0)),
+            Space::new().width(Length::Shrink).height(Length::Fixed(20.0)),
 
             text("Regex Pattern for Gantt Data Extraction").size(16).color(text_color),
 
-            Space::new(Length::Shrink, Length::Fixed(10.0)),
+            Space::new().width(Length::Shrink).height(Length::Fixed(10.0)),
 
             row![
                 text("Regex Pattern:").size(14).color(label_color).width(Length::Fixed(120.0)),
@@ -127,14 +128,14 @@ impl SettingModal for ChartWidgetModal {
             .spacing(10)
             .align_y(iced::alignment::Vertical::Center),
 
-            Space::new(Length::Shrink, Length::Fixed(10.0)),
+            Space::new().width(Length::Shrink).height(Length::Fixed(10.0)),
 
             // Display Options Section
             text("Display Options").size(16).color(text_color),
             
-            Space::new(Length::Shrink, Length::Fixed(10.0)),
+            Space::new().width(Length::Shrink).height(Length::Fixed(10.0)),
 
-            Space::new(Length::Shrink, Length::Fixed(15.0)),
+            Space::new().width(Length::Shrink).height(Length::Fixed(15.0)),
         ]
         .spacing(5)
         .padding(20)

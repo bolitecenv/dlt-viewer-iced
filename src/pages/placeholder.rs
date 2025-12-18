@@ -1,7 +1,7 @@
 use crate::message::Message;
 use iced::{
     Alignment, Color, Element,
-    widget::{column, text, vertical_space},
+    widget::{Space, column, text},
 };
 
 pub fn view<'a>(title: &'a str, icon: &'a str, dark_mode: bool) -> Element<'a, Message> {
@@ -19,9 +19,9 @@ pub fn view<'a>(title: &'a str, icon: &'a str, dark_mode: bool) -> Element<'a, M
 
     column![
         page_title,
-        vertical_space().height(60),
+        Space::new().height(60),
         icon_text,
-        vertical_space().height(20),
+        Space::new().height(20),
         desc,
     ]
     .align_x(Alignment::Center)

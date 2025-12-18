@@ -1,9 +1,5 @@
 use std::any::Any;
-use std::option;
-
-use bincode::{
-    Decode, Encode,
-};use iced::Task;
+use iced::Task;
 use iced::widget::{center, mouse_area, opaque, scrollable};
 use iced::{
     Color, Element, Length, Theme,
@@ -16,6 +12,9 @@ use iced::{
 use crate::app::ICON_FONT;
 use crate::message::Message;
 use crate::module_view::ModuleWidget;
+
+use bincode::{Encode, Decode, encode_to_vec, decode_from_slice, config};
+use bincode::error::{EncodeError, DecodeError};
 
 #[derive(Debug, Clone)]
 pub enum ModalWindowMessage {
@@ -62,7 +61,7 @@ pub trait ModalWindowView {
     }
 
     fn divider(&self, dark_mode: bool) -> Element<'static, Message> {
-        container(Space::new(Length::Fill, Length::Fixed(1.0)))
+        container(Space::new().width(Length::Shrink).height(Length::Fixed(1.0)))
             .width(Length::Fill)
             .height(Length::Fixed(1.0))
             .style(move |_theme: &Theme| container::Style {
@@ -89,9 +88,9 @@ pub trait ModalWindowView {
                         .padding(10)
             );
         }
-        
-        footer_row = footer_row.push(Space::new(Length::Fill, Length::Shrink));
-        
+
+        footer_row = footer_row.push(Space::new().width(Length::Fill).height(Length::Shrink));
+
         if config.show_apply {
             let apply_button = button(text("Apply").size(14))
                     .padding(10)
@@ -120,7 +119,7 @@ pub trait ModalWindowView {
             } else {
                 Color::BLACK
             }),
-            Space::new(Length::Fill, Length::Shrink),
+            Space::new().width(Length::Fill).height(Length::Shrink),
         ]
         .spacing(20)
         .align_y(Vertical::Center);
@@ -150,19 +149,19 @@ pub trait ModalWindowView {
                 // Divider
                 self.divider(dark_mode),
 
-                Space::new(Length::Shrink, Length::Fixed(10.0)),
-                
+                Space::new().width(Length::Shrink).height(Length::Fixed(10.0)),
+
                 // Main content (provided by implementation) - takes up all available space
                 container(content)
                     .width(Length::Fill)
                     .height(Length::Fill),
 
-                Space::new(Length::Shrink, Length::Fixed(10.0)),
-                
+                Space::new().width(Length::Shrink).height(Length::Fixed(10.0)),
+
                 // Divider before footer
                 self.divider(dark_mode),
-                
-                Space::new(Length::Shrink, Length::Fixed(10.0)),
+
+                Space::new().width(Length::Shrink).height(Length::Fixed(10.0)),
                 
                 // Footer buttons
                 footer_row
@@ -197,6 +196,7 @@ pub trait ModalWindowView {
                 offset: iced::Vector::new(0.0, 4.0),
                 blur_radius: 10.0,
             },
+            ..Default::default()
         });
 
         // Center the popup with backdrop
@@ -224,14 +224,17 @@ pub trait ModalWindowView {
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
-
-// Usually Encode needs the context generic too in Bincode 2.0
-pub fn serialize_message<T: Encode>(msg: T) -> Result<Vec<u8>, bincode::error::EncodeError> {
-    bincode::encode_to_vec(&msg, bincode::config::standard())
+pub fn serialize_message<T>(msg: &T) -> Result<Vec<u8>, EncodeError> 
+where
+    T: Encode,
+{
+    bincode::encode_to_vec(msg, config::standard())
 }
 
-// FIX: Added <()> to Decode
-pub fn deserialize_message<T: Decode<()>>(data: &[u8]) -> Result<T, bincode::error::DecodeError> {
-    bincode::decode_from_slice(data, bincode::config::standard())
+pub fn deserialize_message<T>(data: &[u8]) -> Result<T, DecodeError>
+where
+    T: Decode<()>,
+{
+    bincode::decode_from_slice(data, config::standard())
         .map(|(result, _)| result)
 }

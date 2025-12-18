@@ -155,9 +155,8 @@ impl EcuListView {
                 dark_mode,
                 Length::FillPortion(2),
             ),
-            
-            Space::new(Length::Fixed(10.0), Length::Shrink),
-            
+            Space::new().width(Length::Fixed(10.0)).height(Length::Shrink),
+
             // Right panel - Detail view
             self.create_panel(
                 scrollable(detail_view)
@@ -218,7 +217,7 @@ impl EcuListView {
             let ecu_button = button(
                 row![
                     text(if is_expanded { "▼" } else { "▶" }).size(12),
-                    Space::new(Length::Fixed(5.0), Length::Shrink),
+                    Space::new().width(Length::Fixed(5.0)).height(Length::Shrink),
                     text(format!("ECU: {}", ecu.ecuid.clone())).size(14),
                 ]
                 .align_y(Vertical::Center)
@@ -254,9 +253,9 @@ impl EcuListView {
                     // App item (indented)
                     let app_button = button(
                         row![
-                            Space::new(Length::Fixed(20.0), Length::Shrink),
+                            Space::new().width(Length::Fixed(20.0)).height(Length::Shrink),
                             text(if is_app_expanded { "▼" } else { "▶" }).size(12),
-                            Space::new(Length::Fixed(5.0), Length::Shrink),
+                            Space::new().width(Length::Shrink).height(Length::Fixed(5.0)),
                             text(format!("App: {}", app.apid.clone())).size(14),
                         ]
                         .align_y(Vertical::Center)
@@ -292,9 +291,9 @@ impl EcuListView {
                             // Context item (double indented)
                             let ctx_button = button(
                                 row![
-                                    Space::new(Length::Fixed(40.0), Length::Shrink),
+                                    Space::new().width(Length::Fixed(40.0)).height(Length::Shrink),
                                     text("•").size(12),
-                                    Space::new(Length::Fixed(5.0), Length::Shrink),
+                                    Space::new().width(Length::Fixed(5.0)).height(Length::Shrink),
                                     text(format!("Ctx: {}", ctx.context_id.clone())).size(14),
                                 ]
                                 .align_y(Vertical::Center)
@@ -366,22 +365,22 @@ impl EcuListView {
         if let Some(ecu) = self.ecu_list.iter().find(|e| e.ecuid == ecu_id) {
             column![
                 text("ECU Information").size(20).color(text_color),
-                Space::new(Length::Shrink, Length::Fixed(20.0)),
-                
+                Space::new().width(Length::Shrink).height(Length::Fixed(20.0)),
+
                 row![
                     text("ECU ID:").size(14).color(label_color).width(Length::Fixed(140.0)),
                     text(&ecu.ecuid).size(14).color(text_color),
                 ],
-                
-                Space::new(Length::Shrink, Length::Fixed(10.0)),
-                
+
+                Space::new().width(Length::Shrink).height(Length::Fixed(10.0)),
+
                 row![
                     text("Description:").size(14).color(label_color).width(Length::Fixed(140.0)),
                     text(&ecu.description).size(14).color(text_color),
                 ],
-                
-                Space::new(Length::Shrink, Length::Fixed(10.0)),
-                
+
+                Space::new().width(Length::Shrink).height(Length::Fixed(10.0)),
+
                 row![
                     text("Applications:").size(14).color(label_color).width(Length::Fixed(140.0)),
                     text(format!("{}", ecu.app_ids.len())).size(14).color(text_color),
@@ -406,28 +405,28 @@ impl EcuListView {
             if let Some(app) = ecu.app_ids.iter().find(|a| a.apid == app_id) {
                 return column![
                     text("Application Information").size(20).color(text_color),
-                    Space::new(Length::Shrink, Length::Fixed(20.0)),
-                    
+                    Space::new().width(Length::Shrink).height(Length::Fixed(20.0)),
+
                     row![
                         text("App ID:").size(14).color(label_color).width(Length::Fixed(140.0)),
                         text(&app.apid).size(14).color(text_color),
                     ],
-                    
-                    Space::new(Length::Shrink, Length::Fixed(10.0)),
-                    
+
+                    Space::new().width(Length::Shrink).height(Length::Fixed(10.0)),
+
                     row![
                         text("Description:").size(14).color(label_color).width(Length::Fixed(140.0)),
                         text(&app.description).size(14).color(text_color),
                     ],
-                    
-                    Space::new(Length::Shrink, Length::Fixed(10.0)),
-                    
+
+                    Space::new().width(Length::Shrink).height(Length::Fixed(10.0)),
+
                     row![
                         text("Parent ECU:").size(14).color(label_color).width(Length::Fixed(140.0)),
                         text(ecu_id).size(14).color(text_color),
                     ],
                     
-                    Space::new(Length::Shrink, Length::Fixed(10.0)),
+                    Space::new().width(Length::Shrink).height(Length::Fixed(10.0)),
                     
                     row![
                         text("Contexts:").size(14).color(label_color).width(Length::Fixed(140.0)),
@@ -497,21 +496,21 @@ impl EcuListView {
 
         let mut content = column![
             text("Context Settings").size(20).color(text_color),
-            Space::new(Length::Shrink, Length::Fixed(20.0)),
-            
+            Space::new().width(Length::Shrink).height(Length::Fixed(20.0)),
+
             row![
                 text("Context ID:").size(14).color(label_color).width(Length::Fixed(140.0)),
                 text(&ctx.context_id).size(14).color(text_color),
             ],
             
-            Space::new(Length::Shrink, Length::Fixed(10.0)),
+            Space::new().width(Length::Shrink).height(Length::Fixed(10.0)),
             
             row![
                 text("Description:").size(14).color(label_color).width(Length::Fixed(140.0)),
                 text(&ctx.description).size(14).color(text_color),
             ],
             
-            Space::new(Length::Shrink, Length::Fixed(10.0)),
+            Space::new().width(Length::Shrink).height(Length::Fixed(10.0)),
         ]
         .spacing(5);
 
@@ -527,7 +526,7 @@ impl EcuListView {
                         .style(move |theme: &Theme, status| {
                             self.text_input_style(theme, status, dark_mode)
                         }),
-                    Space::new(Length::Fixed(10.0), Length::Shrink),
+                    Space::new().width(Length::Fixed(10.0)).height(Length::Shrink),
                     text(format!("({})", log_level_str)).size(14).color(label_color),
                 ]
             );
@@ -542,7 +541,7 @@ impl EcuListView {
             );
         }
 
-        content = content.push(Space::new(Length::Shrink, Length::Fixed(10.0)));
+        content = content.push(Space::new().width(Length::Shrink).height(Length::Fixed(10.0)));
 
         // Trace Status - editable or display-only
         if self.is_editing {
@@ -556,7 +555,7 @@ impl EcuListView {
                         .style(move |theme: &Theme, status| {
                             self.text_input_style(theme, status, dark_mode)
                         }),
-                    Space::new(Length::Fixed(10.0), Length::Shrink),
+                    Space::new().width(Length::Fixed(10.0)).height(Length::Shrink),
                     text(format!("({})", trace_status_str)).size(14).color(label_color),
                 ]
             );
@@ -572,14 +571,14 @@ impl EcuListView {
         }
 
         content = content
-            .push(Space::new(Length::Shrink, Length::Fixed(10.0)))
+            .push(Space::new().width(Length::Shrink).height(Length::Fixed(10.0)))
             .push(
                 row![
                     text("Parent App:").size(14).color(label_color).width(Length::Fixed(140.0)),
                     text(app_id).size(14).color(text_color),
                 ]
             )
-            .push(Space::new(Length::Shrink, Length::Fixed(10.0)))
+            .push(Space::new().width(Length::Shrink).height(Length::Fixed(10.0)))
             .push(
                 row![
                     text("Parent ECU:").size(14).color(label_color).width(Length::Fixed(140.0)),
@@ -589,7 +588,7 @@ impl EcuListView {
 
         // Edit/Save/Cancel buttons
         content = content
-            .push(Space::new(Length::Shrink, Length::Fixed(20.0)))
+            .push(Space::new().width(Length::Shrink).height(Length::Fixed(20.0)))
             .push(
                 if self.is_editing {
                     row![
@@ -603,7 +602,7 @@ impl EcuListView {
                                     ..button::primary(theme, status)
                                 }
                             }),
-                        Space::new(Length::Fixed(10.0), Length::Shrink),
+                        Space::new().width(Length::Fixed(10.0)).height(Length::Shrink),
                         button(text("Cancel").size(14))
                             .on_press(Message::CancelEditContext)
                             .padding(10),
@@ -619,9 +618,9 @@ impl EcuListView {
 
         // Divider
         content = content
-            .push(Space::new(Length::Shrink, Length::Fixed(30.0)))
+            .push(Space::new().width(Length::Shrink).height(Length::Fixed(30.0)))
             .push(
-                container(Space::new(Length::Fill, Length::Fixed(1.0)))
+                container(Space::new().width(Length::Fill).height(Length::Fixed(1.0)))
                     .style(move |_theme: &Theme| {
                         container::Style {
                             background: Some(if dark_mode {
@@ -633,33 +632,33 @@ impl EcuListView {
                         }
                     })
             )
-            .push(Space::new(Length::Shrink, Length::Fixed(20.0)));
+            .push(Space::new().width(Length::Shrink).height(Length::Fixed(20.0)));
 
         // Injection Message Settings
         content = content
             .push(text("Injection Message Settings").size(20).color(text_color))
-            .push(Space::new(Length::Shrink, Length::Fixed(15.0)))
+            .push(Space::new().width(Length::Shrink).height(Length::Fixed(15.0)))
             .push(
                 row![
                     text("Target ECU:").size(14).color(label_color).width(Length::Fixed(140.0)),
                     text(ecu_id).size(14).color(text_color),
                 ]
             )
-            .push(Space::new(Length::Shrink, Length::Fixed(8.0)))
+            .push(Space::new().width(Length::Shrink).height(Length::Fixed(8.0)))
             .push(
                 row![
                     text("Target App:").size(14).color(label_color).width(Length::Fixed(140.0)),
                     text(app_id).size(14).color(text_color),
                 ]
             )
-            .push(Space::new(Length::Shrink, Length::Fixed(8.0)))
+            .push(Space::new().width(Length::Shrink).height(Length::Fixed(8.0)))
             .push(
                 row![
                     text("Target Context:").size(14).color(label_color).width(Length::Fixed(140.0)),
                     text(&ctx.context_id).size(14).color(text_color),
                 ]
             )
-            .push(Space::new(Length::Shrink, Length::Fixed(15.0)))
+            .push(Space::new().width(Length::Shrink).height(Length::Fixed(15.0)))
             .push(
                 row![
                     text("Message Type:").size(14).color(label_color).width(Length::Fixed(140.0)),
@@ -672,7 +671,7 @@ impl EcuListView {
                         }),
                 ]
             )
-            .push(Space::new(Length::Shrink, Length::Fixed(10.0)))
+            .push(Space::new().width(Length::Shrink).height(Length::Fixed(10.0)))
             .push(
                 column![
                     row![
@@ -688,7 +687,7 @@ impl EcuListView {
                 ]
                 .spacing(5)
             )
-            .push(Space::new(Length::Shrink, Length::Fixed(20.0)))
+            .push(Space::new().width(Length::Shrink).height(Length::Fixed(20.0)))
             .push(
                 row![
                     button(text("Inject Message").size(14))
@@ -706,7 +705,7 @@ impl EcuListView {
                                 ..button::primary(theme, status)
                             }
                         }),
-                    Space::new(Length::Fixed(10.0), Length::Shrink),
+                    Space::new().width(Length::Fixed(10.0)).height(Length::Shrink),
                     button(text("Clear").size(14))
                         .on_press(Message::ClearInjectionMessage)
                         .padding(10),
