@@ -1,5 +1,5 @@
 use crate::modal_window::modal_window::{ModalConfig, ModalWindowMessage, ModalWindowView};
-use crate::utility::util::{serialize_message, deserialize_message};
+use crate::utility::util::{deserialize_message};
 use crate::message::Message;
 use crate::module_view::ModuleWidget;
 use iced::Task;
@@ -29,11 +29,6 @@ impl ConfirmModal {
             title, 
             message, 
         }
-    }
-
-    fn create_custom_message(msg: ConfirmMessage) -> ModalWindowMessage {
-        let data = serialize_message(&msg).unwrap();
-        ModalWindowMessage::Custom("confirm_modal".to_string(), data)
     }
 }
 
@@ -69,7 +64,7 @@ impl ModalWindowView for ConfirmModal {
             .into()
     }
 
-    fn update(&mut self, message: ModalWindowMessage, module: Option<&mut ModuleWidget>) -> Task<Message> {
+    fn update(&mut self, message: ModalWindowMessage, _module: Option<&mut ModuleWidget>) -> Task<Message> {
         match message {
             ModalWindowMessage::Apply => {
                 return Task::done(Message::CloseSettingsModal);
@@ -77,7 +72,7 @@ impl ModalWindowView for ConfirmModal {
             ModalWindowMessage::Close => {
                 return Task::done(Message::CloseSettingsModal);
             }
-            ModalWindowMessage::Custom(msg_type, data) => {
+            ModalWindowMessage::Custom(_msg_type, data) => {
                 if let Ok(msg) = deserialize_message::<ConfirmMessage>(&data) {
                     match msg {
                         ConfirmMessage::Confirm => {
@@ -86,7 +81,6 @@ impl ModalWindowView for ConfirmModal {
                         ConfirmMessage::Cancel => {
                             println!("Cancelled via custom message");
                         }
-                        _ => {}
                     }
                 }
             }

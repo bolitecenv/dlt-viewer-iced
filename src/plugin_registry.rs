@@ -4,7 +4,6 @@ use iced::Task;
 use crate::plugin::{DashboardContext, Plugin, PluginMessage};
 
 // Auto Generated: use
-use crate::plugins::example;
 use crate::plugins::timer;
 
 // End Auto Generated: use
@@ -28,7 +27,6 @@ impl PluginRegistry {
 // Auto Generated: register_all
     #[allow(unused_mut)]
     fn register_all(&mut self) {
-        self.register::<example::ExamplePlugin>();
         self.register::<timer::TimerPlugin>();
     }
 // End Auto Generated: register_all
@@ -60,14 +58,6 @@ impl PluginRegistry {
         }).collect()
     }
     
-    pub fn get(&self, name: &str) -> Option<&Box<dyn Plugin>> {
-        self.plugins.get(name)
-    }
-    
-    pub fn get_mut(&mut self, name: &str) -> Option<&mut Box<dyn Plugin>> {
-        self.plugins.get_mut(name)
-    }
-
     pub fn get_plugin(&self, name: &str) -> Option<&Box<dyn Plugin>> {
         self.plugins.get(name)
     }

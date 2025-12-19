@@ -6,7 +6,6 @@ use iced::{Color, Point, Size};
 pub struct ContextMenu {
     pub position: Point,
     pub items: Vec<ContextMenuItem>,
-    pub target_module: Option<usize>,  // Which module this menu is for
     pub width: f32,
     pub item_height: f32,
 }
@@ -22,7 +21,6 @@ pub struct ContextMenuItem {
 pub enum ContextMenuAction {
     AddChart,
     AddGanttChart,
-    AddInjectionWindow,
     AddMeterWindow,
     Delete,
     Duplicate,
@@ -30,7 +28,7 @@ pub enum ContextMenuAction {
 }
 
 impl ContextMenu {
-    pub fn new(position: Point, target_module: Option<usize>) -> Self {
+    pub fn new(position: Point) -> Self {
         let items = vec![
             ContextMenuItem {
                 label: "Add Chart".to_string(),
@@ -62,7 +60,6 @@ impl ContextMenu {
         Self {
             position,
             items,
-            target_module,
             width: 180.0,
             item_height: 32.0,
         }

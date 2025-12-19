@@ -321,7 +321,6 @@ impl ModuleCanvas {
 
                     self.context_menu = Some(ContextMenu::new(
                         _position,
-                        target_module,
                     ));
                 }
             }
@@ -341,8 +340,7 @@ impl ModuleCanvas {
                         let message = match action {
                             ContextMenuAction::AddChart => ModuleCanvasMessage::AddChart,
                             ContextMenuAction::AddGanttChart => ModuleCanvasMessage::AddGanttChart,
-                            ContextMenuAction::AddInjectionWindow => ModuleCanvasMessage::AddGanttChart, // Placeholder
-                            ContextMenuAction::AddMeterWindow => ModuleCanvasMessage::AddGanttChart, // Placeholder
+                            ContextMenuAction::AddMeterWindow => ModuleCanvasMessage::AddGanttChart,
                             ContextMenuAction::Delete => ModuleCanvasMessage::Delete,
                             ContextMenuAction::Duplicate => ModuleCanvasMessage::Duplicate,
                             ContextMenuAction::Settings => ModuleCanvasMessage::Settings,

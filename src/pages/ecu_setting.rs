@@ -1,16 +1,11 @@
-// components/ecu_list_view.rs
-// ECU List View with tree navigation and settings panel
-
 use iced::{
     Color, Element, Length, Theme,
     alignment::Vertical,
     widget::{
-        button, column, container, row, text, scrollable, Space, text_input, Column, Row,
+        button, column, container, row, text, scrollable, Space, text_input,
     }
 };
-
-// Import your types - adjust the path as needed for your project structure
-use crate::types::{FrontDltEcuItem, FrontDltAppIdItem, FrontDltCtxIdItem};
+use crate::types::{FrontDltEcuItem, FrontDltCtxIdItem};
 use crate::message::Message;
 
 /// Selection state for the ECU tree

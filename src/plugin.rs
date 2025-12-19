@@ -13,8 +13,6 @@ pub trait Plugin: Send + Sync {
     /// Plugin identifier/name shown in navigation
     fn name(&self) -> &str;
 
-    fn nav_name(&self) -> &str;
-    
     /// Initialize the plugin
     fn new() -> Self where Self: Sized;
     
@@ -22,12 +20,7 @@ pub trait Plugin: Send + Sync {
     fn update(&mut self, message: PluginMessage, context: &DashboardContext) -> Task<PluginMessage>;
 
     /// Render plugin view
-    fn view(&self, context: &DashboardContext) -> Element<PluginMessage>;
-    
-    /// Optional: plugin icon or description
-    fn description(&self) -> Option<&str> {
-        None
-    }
+    fn view(&self, context: &DashboardContext) -> Element<'_, PluginMessage>;
 }
 
 #[derive(Debug, Clone)]

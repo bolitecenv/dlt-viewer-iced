@@ -29,10 +29,6 @@ impl Plugin for TimerPlugin {
         "Timer"
     }
     
-    fn nav_name(&self) -> &str {
-        "Timer"
-    }
-    
     fn new() -> Self {
         Self { 
             seconds: 0,
