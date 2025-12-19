@@ -1,4 +1,5 @@
-use crate::modal_window::modal_window::{ModalConfig, ModalWindowMessage, ModalWindowView, deserialize_message, serialize_message};
+use crate::modal_window::modal_window::{ModalConfig, ModalWindowMessage, ModalWindowView};
+use crate::utility::util::{serialize_message, deserialize_message};
 use crate::message::Message;
 use crate::module_view::ModuleWidget;
 use iced::Task;

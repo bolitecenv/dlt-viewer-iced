@@ -1,20 +1,15 @@
-use std::any::Any;
 use iced::Task;
-use iced::widget::{center, mouse_area, opaque, scrollable};
+use iced::widget::{mouse_area, opaque};
 use iced::{
     Color, Element, Length, Theme,
     alignment::{Horizontal, Vertical},
     widget::{
         button, column, container, row, text, Space
-    },
-    Font,
+    }
 };
 use crate::app::ICON_FONT;
 use crate::message::Message;
 use crate::module_view::ModuleWidget;
-
-use bincode::{Encode, Decode, encode_to_vec, decode_from_slice, config};
-use bincode::error::{EncodeError, DecodeError};
 
 #[derive(Debug, Clone)]
 pub enum ModalWindowMessage {
@@ -219,19 +214,4 @@ pub trait ModalWindowView {
             )
         ).into()
     }
-}
-
-pub fn serialize_message<T>(msg: &T) -> Result<Vec<u8>, EncodeError> 
-where
-    T: Encode,
-{
-    bincode::encode_to_vec(msg, config::standard())
-}
-
-pub fn deserialize_message<T>(data: &[u8]) -> Result<T, DecodeError>
-where
-    T: Decode<()>,
-{
-    bincode::decode_from_slice(data, config::standard())
-        .map(|(result, _)| result)
 }

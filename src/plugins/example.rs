@@ -11,6 +11,10 @@ pub enum ExampleMessage {
     IncrementPressed,
 }
 
+impl ExampleMessage {
+
+}
+
 impl Plugin for ExamplePlugin {
     fn name(&self) -> &str {
         "Example"

@@ -1,8 +1,9 @@
 use crate::components::dlt_data_manager::DltDataRegexItem;
 use crate::message::Message;
-use crate::modal_window::modal_window::{ModalConfig, deserialize_message, serialize_message};
+use crate::modal_window::modal_window::ModalConfig;
 use crate::module_view::setting_modals::setting_modal_window::{SettingModal, SettingModalMessage};
 use crate::module_view::{ChartWidget, ModuleWidget};
+use crate::utility::util::{serialize_message, deserialize_message};
 use iced::Task;
 use iced::{
     Color, Element, Length,
@@ -10,7 +11,6 @@ use iced::{
         column, row, text, Space, text_input,
     }
 };
-use std::any::Any;
 use bincode::{Encode, Decode};
 
 #[derive(Debug, Clone, Encode, Decode)]
