@@ -5,14 +5,15 @@ use crate::{
 };
 use iced::{
     Alignment, Border, Color, Element, Length, Theme,
-    widget::{Button, button, column, container, row, text},
+    widget::{button, column, container, row, text},
 };
 
-// Font Awesome Unicode characters
-const ICON_OVERVIEW: &str = "\u{f080}"; // chart-bar
-const ICON_ANALYTICS: &str = "\u{f015}"; // chart-line  
-const ICON_REPORTS: &str = "\u{f15c}"; // file
-const ICON_SETTINGS: &str = "\u{f013}"; // gear/cog
+const ICON_OVERVIEW: &str = "\u{f080}";
+const ICON_ANALYTICS: &str = "\u{f015}";
+const ICON_REPORTS: &str = "\u{f15c}";
+const ICON_SETTINGS: &str = "\u{f013}";
+const ICON_TABLE: &str = "\u{f0ce}";
+const ICON_CHART_CANVAS: &str = "\u{f43c}";
 
 pub fn view(
     current_page: Page,
@@ -29,8 +30,8 @@ pub fn view(
     let base_nav_items: Vec<(&'static str, String, Page)> = vec![
         (ICON_REPORTS, String::from("ECUSetting"), Page::ECUSetting),
         (ICON_SETTINGS, String::from("Settings"), Page::Settings),
-        ("\u{f0ce}", String::from("Table"), Page::Table),
-        ("\u{f43c}", String::from("Chart Canvas"), Page::ChartCanvas),
+        (ICON_TABLE, String::from("Table"), Page::Table),
+        (ICON_CHART_CANVAS, String::from("Chart Canvas"), Page::ChartCanvas),
     ];
 
     let plugin_nav_items: Vec<(&'static str, String, Page)> = plugin
