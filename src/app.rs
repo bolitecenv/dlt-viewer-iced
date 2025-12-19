@@ -3,6 +3,7 @@ use crate::components::{navigation, top_bar};
 use crate::message::{Message, Page};
 use crate::module_view::ModuleCanvas;
 use crate::modal_window::modal_window::*;
+use crate::module_view::canvas::ModuleCanvasMessage;
 use crate::pages::ecu_setting::{EcuListView, EcuSelection};
 use crate::pages::{self};
 use crate::plugin::DashboardContext;
@@ -77,7 +78,10 @@ impl Default for Dashboard {
 impl Dashboard {
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::ToggleTheme => self.dark_mode = !self.dark_mode,
+            Message::ToggleTheme => {
+                self.dark_mode = !self.dark_mode;
+                self.module_canvas.update(ModuleCanvasMessage::ToggleTheme(self.dark_mode), &mut self.modal_window);
+            }
             Message::NavigateTo(page) => self.current_page = page,
             Message::Tick => {}
             Message::TcpIpChanged(ip) => self.tcp_ip = ip,
@@ -280,7 +284,7 @@ impl Dashboard {
                 &self.connection_status,
             ),
             Page::Table => pages::table::view(self.dark_mode, &self.messages),
-            Page::ChartCanvas => self.module_canvas.view(self.dark_mode),
+            Page::ChartCanvas => self.module_canvas.view(),
             Page::PluginPage(ref plugin_name) => {
                 if let Some(plugin) = self.registry.get_plugin(plugin_name) {
                     plugin.view(&self.get_context()).map(move |plugin_msg| {

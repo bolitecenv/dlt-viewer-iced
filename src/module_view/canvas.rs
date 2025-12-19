@@ -18,7 +18,6 @@ use iced::widget::Action;
 use iced::widget::canvas::{self, Canvas};
 use iced::{Color, Element, Length, Point, Rectangle, Renderer, Task, Theme, keyboard, mouse};
 use std::collections::HashMap;
-use iced::event::Status;
 
 pub const GRID_SIZE: f32 = 50.0;
 pub const SNAP_THRESHOLD: f32 = 10.0;
@@ -43,6 +42,7 @@ pub struct ModuleCanvas {
 
 #[derive(Debug, Clone)]
 pub enum ModuleCanvasMessage {
+    ToggleTheme(bool),
     AddChart,
     AddGanttChart,
     AddMeter,
@@ -115,10 +115,13 @@ impl ModuleCanvas {
 
     pub fn update(&mut self, message: ModuleCanvasMessage, app_view: &mut Option<Box<dyn ModalWindowView>>) -> Task<Message> {
         match message {
+            ModuleCanvasMessage::ToggleTheme(is_dark_mode) => {
+                self.dark_mode = is_dark_mode;
+            }
             ModuleCanvasMessage::AddChart => {
                 println!("Add Chart action triggered");
 
-                let mut chart_widget = ChartWidget::new(self.dark_mode, ChartSettings::default());
+                let mut chart_widget = ChartWidget::new(ChartSettings::default());
 
                 // Add random data for testing
                 for i in 0..50 {
@@ -415,7 +418,7 @@ impl ModuleCanvas {
         Task::none()
     }
 
-    pub fn view(&self, _dark_mode: bool) -> Element<'_, Message> {
+    pub fn view(&self) -> Element<'_, Message> {
         Canvas::new(self)
             .width(Length::Fill)
             .height(Length::Fill)
@@ -475,7 +478,7 @@ impl ModuleCanvas {
 
     fn draw_modules(&self, frame: &mut canvas::Frame) {
         for module in self.module_widget.values() {
-            module.module_widget.window_draw(frame);
+            module.module_widget.window_draw(frame, self.dark_mode);
         }
     }
 }

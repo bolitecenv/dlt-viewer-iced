@@ -197,13 +197,13 @@ pub trait ModuleWidgetWindowView: Send + Sync {
             && point.y >= window.position.y + window.size.height - VERTICAL_RESIZE_MARGIN
             && point.y <= window.position.y + window.size.height + VERTICAL_RESIZE_MARGIN
     }
-    fn draw(&self, frame: &mut canvas::Frame);
-    fn window_draw(&self, frame: &mut canvas::Frame) {
+    fn draw(&self, frame: &mut canvas::Frame, dark_mode: bool);
+    fn window_draw(&self, frame: &mut canvas::Frame, dark_mode: bool) {
         // Draw window border and bg
         let window = self.get_window();
         frame.fill_rectangle(window.position, window.size, window.bg_color);
 
-        self.draw(frame);
+        self.draw(frame, dark_mode);
     }
 
     fn move_window(&mut self, initial_mouse_position: Point, current_mouse_position: Point) {

@@ -3,17 +3,15 @@ use crate::message::Message;
 use crate::modal_window::modal_window::{ModalConfig, deserialize_message, serialize_message};
 use crate::module_view::setting_modals::setting_modal_window::{SettingModal, SettingModalMessage};
 use crate::module_view::{GanttChartWidget, ModuleWidget};
-use serde::{Deserialize, Serialize};
 use iced::Task;
 use iced::{
-    Color, Element, Length, Theme,
+    Color, Element, Length,
     widget::{
-        button, column, container, row, text, scrollable, Space, text_input, pick_list, checkbox
+        column, row, text, Space, text_input, checkbox
     }
 };
 use std::any::Any;
-use bincode::{Encode, Decode, encode_to_vec, decode_from_slice, config};
-use bincode::error::{EncodeError, DecodeError};
+use bincode::{Encode, Decode};
 
 #[derive(Debug, Clone, Encode, Decode)]
 pub enum GanttModalMessage {
@@ -237,8 +235,6 @@ impl SettingModal for GanttWidgetModal {
                     }
                 }
             }
-
-            _ => {},
         }
         Task::none()
     }

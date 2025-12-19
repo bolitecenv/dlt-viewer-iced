@@ -42,7 +42,6 @@ pub struct GanttChartWidget {
     pub window: ModuleWidgetWindow,
     pub settings: GanttSettings,
     pub datas: Vec<GanttDataPoint>,
-    pub dark_mode: bool,
     pub pan_offset_x: f32,
     pub pan_offset_y: f32,
     pub zoom_x: f32,
@@ -70,9 +69,9 @@ impl ModuleWidgetWindowView for GanttChartWidget {
         &mut self.window
     }
 
-    fn draw(&self, frame: &mut canvas::Frame) {
+    fn draw(&self, frame: &mut canvas::Frame, dark_mode: bool) {
         // Call the standalone draw implementation
-        draw_gantt_impl(frame, self, self.window.position, self.window.size);
+        draw_gantt_impl(frame, self, self.window.position, self.window.size, dark_mode);
     }
 
     fn zoom(&mut self, delta: f32, shift_pressed: bool, ctrl_pressed: bool) {
@@ -106,7 +105,6 @@ impl ModuleWidgetWindowView for GanttChartWidget {
             },
             settings: self.settings.clone(),
             datas: self.datas.clone(),
-            dark_mode: self.dark_mode,
             pan_offset_x: self.pan_offset_x,
             pan_offset_y: self.pan_offset_y,
             zoom_x: self.zoom_x,
@@ -172,7 +170,6 @@ impl ModuleWidgetWindowView for GanttChartWidget {
 impl GanttChartWidget {
     pub fn new(dark_mode: bool, settings: GanttSettings) -> Self {
         Self {
-            dark_mode,
             settings,
             datas: Vec::new(),
             window: ModuleWidgetWindow::default(),
@@ -252,6 +249,7 @@ impl GanttChartWidget {
         frame: &mut canvas::Frame,
         area: &Rectangle,
         data: &[GanttDataPoint],
+        dark_mode: bool,
     ) {
         if data.is_empty() {
             return;
@@ -286,12 +284,12 @@ impl GanttChartWidget {
 
         // 2. Define Colors
         let axis_color = Color::from_rgb(0.7, 0.7, 0.7);
-        let grid_color = if self.dark_mode {
+        let grid_color = if dark_mode {
             Color::from_rgba(0.4, 0.4, 0.4, 0.3)
         } else {
             Color::from_rgba(0.7, 0.7, 0.7, 0.3)
         };
-        let text_color = if self.dark_mode {
+        let text_color = if dark_mode {
             Color::from_rgb(0.8, 0.8, 0.8)
         } else {
             Color::from_rgb(0.3, 0.3, 0.3)
@@ -431,7 +429,8 @@ fn draw_gantt_impl(
     frame: &mut canvas::Frame,
     gantt_widget: &GanttChartWidget,
     position: Point,
-    size: Size
+    size: Size,
+    dark_mode: bool,
 ) {
     // Ensure chart stays within bounds
     let safe_width = size.width.max(MIN_CHART_WIDTH);
@@ -441,7 +440,7 @@ fn draw_gantt_impl(
     let elevation_offset = 2.0;
 
     // Draw elevation shadow
-    let shadow_color = if gantt_widget.dark_mode {
+    let shadow_color = if dark_mode {
         Color::from_rgba(0.0, 0.0, 0.0, 0.5)
     } else {
         Color::from_rgba(0.0, 0.0, 0.0, 0.2)
@@ -459,7 +458,7 @@ fn draw_gantt_impl(
     frame.fill(&shadow_path, shadow_color);
 
     // Draw card background
-    let chart_bg = if gantt_widget.dark_mode {
+    let chart_bg = if dark_mode {
         Color::from_rgba(0.2, 0.2, 0.25, 0.95)
     } else {
         Color::from_rgba(1.0, 1.0, 1.0, 0.95)
@@ -488,7 +487,7 @@ fn draw_gantt_impl(
     );
 
     // Draw title
-    let title_color = if gantt_widget.dark_mode {
+    let title_color = if dark_mode {
         Color::WHITE
     } else {
         Color::BLACK
@@ -506,7 +505,7 @@ fn draw_gantt_impl(
     });
 
     // Draw subtitle
-    let subtitle_color = if gantt_widget.dark_mode {
+    let subtitle_color = if dark_mode {
         Color::from_rgb(0.8, 0.8, 0.8)
     } else {
         Color::from_rgb(0.2, 0.2, 0.2)
@@ -537,5 +536,5 @@ fn draw_gantt_impl(
     };
 
     // Delegate to the specific Gantt drawing logic
-    gantt_widget.draw_gantt_chart(frame, &chart_area, &gantt_widget.datas);
+    gantt_widget.draw_gantt_chart(frame, &chart_area, &gantt_widget.datas, dark_mode);
 }

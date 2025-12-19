@@ -33,8 +33,8 @@ impl ModuleWidgetWindowView for MeterWidget {
         &mut self.window
     }
 
-    fn draw(&self, frame: &mut canvas::Frame) {
-        draw_meter_impl(frame, self, self.window.position, self.window.size);
+    fn draw(&self, frame: &mut canvas::Frame, dark_mode: bool) {
+        draw_meter_impl(frame, self, self.window.position, self.window.size, dark_mode);
     }
 
     fn clone_box(&self) -> Box<dyn ModuleWidgetWindowView> {
@@ -396,6 +396,7 @@ fn draw_meter_impl(
     meter_widget: &MeterWidget,
     position: Point,
     size: Size,
+    dark_mode: bool,
 ) {
     let safe_width = size.width.max(MIN_CHART_WIDTH);
     let safe_height = size.height.max(MIN_CHART_HEIGHT);

@@ -120,7 +120,7 @@ pub fn draw_circular_context_menu(
         Color::from_rgba(0.0, 0.0, 0.0, 0.15)
     };
     frame.fill(
-        &canvas::Path::circle(menu.position, radius + 5.0),
+        &canvas::Path::circle(menu.position, radius + 1.0),
         backdrop_color,
     );
 
@@ -144,89 +144,36 @@ pub fn draw_circular_context_menu(
         let (r, g, b) = if is_hovered { hover_rgb } else { base_rgb };
 
         // Draw multiple layers with increasing transparency to create gradient effect
-        let radial_layers = 20;
+        let slice_opacity = if is_hovered { 0.95 } else { 0.85 };
+        let slice_color = Color::from_rgba(r, g, b, slice_opacity);
+
+        let mut path_builder = canvas::path::Builder::new();
         let segments = 30;
 
-        for layer in 0..radial_layers {
-            let t_inner = layer as f32 / radial_layers as f32;
-            let t_outer = (layer + 1) as f32 / radial_layers as f32;
-
-            // Calculate radius for this layer
-            let layer_inner_radius = inner_radius + (radius - inner_radius) * t_inner;
-            let layer_outer_radius = inner_radius + (radius - inner_radius) * t_outer;
-
-            // Calculate opacity: 1.0 at center (inner_radius), 0.0 at edge (radius)
-            // Use average opacity for this layer
-            let opacity_inner = 1.0 - t_inner;
-            let opacity_outer = 1.0 - t_outer;
-            let layer_opacity = (opacity_inner + opacity_outer) / 2.0;
-
-            let layer_color = Color::from_rgba(r, g, b, layer_opacity);
-
-            // Build the path for this layer
-            let mut path_builder = canvas::path::Builder::new();
-
-            // Outer arc
-            for i in 0..=segments {
-                let seg_t = i as f32 / segments as f32;
-                let angle = item.angle_start + (item.angle_end - item.angle_start) * seg_t;
-
-                let x = menu.position.x + layer_outer_radius * angle.cos();
-                let y = menu.position.y + layer_outer_radius * angle.sin();
-
-                if i == 0 {
-                    path_builder.move_to(Point::new(x, y));
-                } else {
-                    path_builder.line_to(Point::new(x, y));
-                }
-            }
-
-            // Inner arc (reverse direction)
-            for i in (0..=segments).rev() {
-                let seg_t = i as f32 / segments as f32;
-                let angle = item.angle_start + (item.angle_end - item.angle_start) * seg_t;
-
-                let x = menu.position.x + layer_inner_radius * angle.cos();
-                let y = menu.position.y + layer_inner_radius * angle.sin();
-
-                path_builder.line_to(Point::new(x, y));
-            }
-
-            path_builder.close();
-            let path = path_builder.build();
-
-            frame.fill(&path, layer_color);
-        }
-
-        // Draw border only on the outermost edge
-        let mut border_builder = canvas::path::Builder::new();
-
-        // Outer arc for border
+        // Outer arc
         for i in 0..=segments {
-            let t = i as f32 / segments as f32;
-            let angle = item.angle_start + (item.angle_end - item.angle_start) * t;
-
+            let seg_t = i as f32 / segments as f32;
+            let angle = item.angle_start + (item.angle_end - item.angle_start) * seg_t;
             let x = menu.position.x + radius * angle.cos();
             let y = menu.position.y + radius * angle.sin();
-
             if i == 0 {
-                border_builder.move_to(Point::new(x, y));
+                path_builder.move_to(Point::new(x, y));
             } else {
-                border_builder.line_to(Point::new(x, y));
+                path_builder.line_to(Point::new(x, y));
             }
         }
 
-        let border_path = border_builder.build();
-        frame.stroke(
-            &border_path,
-            canvas::Stroke::default()
-                .with_color(if dark_mode {
-                    Color::from_rgba(1.0, 1.0, 1.0, 0.1)
-                } else {
-                    Color::from_rgba(0.0, 0.0, 0.0, 0.15)
-                })
-                .with_width(1.0),
-        );
+        // Inner arc (reverse)
+        for i in (0..=segments).rev() {
+            let seg_t = i as f32 / segments as f32;
+            let angle = item.angle_start + (item.angle_end - item.angle_start) * seg_t;
+            let x = menu.position.x + inner_radius * angle.cos();
+            let y = menu.position.y + inner_radius * angle.sin();
+            path_builder.line_to(Point::new(x, y));
+        }
+
+        path_builder.close();
+        frame.fill(&path_builder.build(), slice_color);
 
         // Draw icon/text label with better positioning
         let mid_angle = (item.angle_start + item.angle_end) / 2.0;
@@ -262,38 +209,38 @@ pub fn draw_circular_context_menu(
     }
 
     // Draw modern center circle with gradient-like effect
-    let center_outer = if dark_mode {
-        Color::from_rgba(0.18, 0.18, 0.22, 0.8)
-    } else {
-        Color::from_rgba(0.95, 0.95, 0.98, 0.85)
-    };
+    // let center_outer = if dark_mode {
+    //     Color::from_rgba(0.18, 0.18, 0.22, 0.8)
+    // } else {
+    //     Color::from_rgba(0.95, 0.95, 0.98, 0.85)
+    // };
 
-    frame.fill(
-        &canvas::Path::circle(menu.position, inner_radius),
-        center_outer,
-    );
+    // frame.fill(
+    //     &canvas::Path::circle(menu.position, inner_radius),
+    //     center_outer,
+    // );
 
     // Inner highlight for depth
-    let center_highlight = if dark_mode {
-        Color::from_rgba(0.3, 0.3, 0.35, 0.4)
-    } else {
-        Color::from_rgba(1.0, 1.0, 1.0, 0.7)
-    };
+    // let center_highlight = if dark_mode {
+    //     Color::from_rgba(0.3, 0.3, 0.35, 0.4)
+    // } else {
+    //     Color::from_rgba(1.0, 1.0, 1.0, 0.7)
+    // };
 
-    frame.fill(
-        &canvas::Path::circle(menu.position, inner_radius * 0.7),
-        center_highlight,
-    );
+    // frame.fill(
+    //     &canvas::Path::circle(menu.position, inner_radius * 0.7),
+    //     center_highlight,
+    // );
 
     // Subtle border on center
-    frame.stroke(
-        &canvas::Path::circle(menu.position, inner_radius),
-        canvas::Stroke::default()
-            .with_color(if dark_mode {
-                Color::from_rgba(1.0, 1.0, 1.0, 0.1)
-            } else {
-                Color::from_rgba(0.0, 0.0, 0.0, 0.15)
-            })
-            .with_width(1.0),
-    );
+    // frame.stroke(
+    //     &canvas::Path::circle(menu.position, inner_radius),
+    //     canvas::Stroke::default()
+    //         .with_color(if dark_mode {
+    //             Color::from_rgba(1.0, 1.0, 1.0, 0.1)
+    //         } else {
+    //             Color::from_rgba(0.0, 0.0, 0.0, 0.15)
+    //         })
+    //         .with_width(1.0),
+    // );
 }

@@ -26,7 +26,6 @@ pub struct ChartWidget {
     pub window: ModuleWidgetWindow,
     pub settings: ChartSettings,
     pub datas: Vec<ChartData>,
-    pub dark_mode: bool,
     pub pan_offset_x: f32,
     pub pan_offset_y: f32,
     pub zoom_x: f32,
@@ -54,8 +53,8 @@ impl ModuleWidgetWindowView for ChartWidget {
         &mut self.window
     }
 
-    fn draw(&self, frame: &mut canvas::Frame) {
-        draw_chart_impl(frame, self, self.window.position, self.window.size);
+    fn draw(&self, frame: &mut canvas::Frame, dark_mode: bool) {
+        draw_chart_impl(frame, self, self.window.position, self.window.size, dark_mode);
     }
 
     fn zoom(&mut self, delta: f32, zoom_x: bool, zoom_y: bool) {
@@ -95,7 +94,6 @@ impl ModuleWidgetWindowView for ChartWidget {
                 y_label: self.settings.y_label.clone(),
             },
             datas: self.datas.clone(),
-            dark_mode: self.dark_mode,
             pan_offset_x: self.pan_offset_x,
             pan_offset_y: self.pan_offset_y,
             zoom_x: self.zoom_x,
@@ -125,9 +123,8 @@ impl ModuleWidgetWindowView for ChartWidget {
 
 
 impl ChartWidget {
-    pub fn new(dark_mode: bool, settings: ChartSettings) -> Self {
+    pub fn new(settings: ChartSettings) -> Self {
         Self {
-            dark_mode,
             settings,
             datas: Vec::new(),
             window: ModuleWidgetWindow::default(),
@@ -165,6 +162,7 @@ impl ChartWidget {
 
     fn draw_line_chart(
         &self,
+        dark_mode: bool,
         frame: &mut canvas::Frame,
         area: &Rectangle,
         chart_data: &[ChartData],
@@ -198,7 +196,7 @@ impl ChartWidget {
         );
 
         // Define label color (used for both axis labels and tick labels)
-        let label_color = if self.dark_mode {
+        let label_color = if dark_mode {
             Color::from_rgb(0.8, 0.8, 0.8)
         } else {
             Color::from_rgb(0.3, 0.3, 0.3)
@@ -352,7 +350,8 @@ fn draw_chart_impl(
     frame: &mut canvas::Frame,
     chart_widget: &ChartWidget,
     position: Point,
-    size: Size
+    size: Size,
+    dark_mode: bool,
 ) {
     // Ensure chart stays within bounds
     let safe_width = size.width.max(MIN_CHART_WIDTH);
@@ -362,7 +361,7 @@ fn draw_chart_impl(
     let elevation_offset = 2.0;
 
     // Draw elevation shadow
-    let shadow_color = if chart_widget.dark_mode {
+    let shadow_color = if dark_mode {
         Color::from_rgba(0.0, 0.0, 0.0, 0.5)
     } else {
         Color::from_rgba(0.0, 0.0, 0.0, 0.2)
@@ -380,7 +379,7 @@ fn draw_chart_impl(
     frame.fill(&shadow_path, shadow_color);
 
     // Draw card background
-    let chart_bg = if chart_widget.dark_mode {
+    let chart_bg = if dark_mode {
         Color::from_rgba(0.2, 0.2, 0.25, 0.95)
     } else {
         Color::from_rgba(1.0, 1.0, 1.0, 0.95)
@@ -409,7 +408,7 @@ fn draw_chart_impl(
     );
 
     // Draw title
-    let title_color = if chart_widget.dark_mode {
+    let title_color = if dark_mode {
         Color::WHITE
     } else {
         Color::BLACK
@@ -427,7 +426,7 @@ fn draw_chart_impl(
     });
 
     // Draw subtitle
-    let subtitle_color = if chart_widget.dark_mode {
+    let subtitle_color = if dark_mode {
         Color::from_rgb(0.8, 0.8, 0.8)
     } else {
         Color::from_rgb(0.2, 0.2, 0.2)
@@ -457,5 +456,5 @@ fn draw_chart_impl(
         height: available_height,
     };
 
-    chart_widget.draw_line_chart(frame, &chart_area, &chart_widget.datas);
+    chart_widget.draw_line_chart(dark_mode, frame, &chart_area, &chart_widget.datas);
 }
