@@ -15,5 +15,9 @@ regex = "1.12.2"
 serde = { version = "1.0.228", features = ["derive"] }
 bincode = "2.0.1"
 
+[build-dependencies]
+regex = "1.12.2"
+
+
 [features]
 plugin_example = []

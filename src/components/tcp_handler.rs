@@ -272,27 +272,10 @@ fn parse_dlt_messages(buffer: &mut Vec<u8>, messages_parsed: &mut usize) -> Opti
         println!("Removed {} bytes from buffer, {} bytes remaining", current_offset, buffer.len());
     }
     
-    // Return appropriate message based on what we parsed
-    match (!parsed_messages.is_empty(), !service_responses.is_empty()) {
-        (true, true) => {
-            // Both DLT messages and service responses
-            Some(Message::BatchUpdate {
+    Some(Message::BatchUpdate {
                 dlt_messages: parsed_messages,
                 ecu_updates: service_responses,
-            })
-        }
-        (true, false) => {
-            // Only DLT messages
-            Some(Message::ConnectionEvent(
-                ConnectionEvent::DltMessageReceived(parsed_messages)
-            ))
-        }
-        (false, true) => {
-            // Only service responses
-            Some(Message::EcuListUpdate(service_responses))
-        }
-        (false, false) => None,
-    }
+    })
 }
 
 // ============================================================================

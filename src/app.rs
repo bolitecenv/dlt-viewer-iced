@@ -6,7 +6,7 @@ use crate::modal_window::modal_window::*;
 use crate::module_view::canvas::ModuleCanvasMessage;
 use crate::pages::ecu_setting::{EcuListView, EcuSelection};
 use crate::pages::{self};
-use crate::plugin::DashboardContext;
+use crate::plugin::{DashboardContext, PluginMessage};
 use crate::plugin_registry::PluginRegistry;
 use crate::types::FrontDltEcuItem;
 use crate::message::ConnectionEvent;
@@ -85,7 +85,17 @@ impl Dashboard {
                 self.module_canvas.update(ModuleCanvasMessage::ToggleTheme(self.dark_mode), &mut self.modal_window);
             }
             Message::NavigateTo(page) => self.current_page = page,
-            Message::Tick => {}
+            Message::Tick => {
+                // Clone the data so the context does not borrow `self` immutably while
+                // `self.registry.update_all` needs a mutable borrow of `self.registry`.
+                let ecu_list_clone = self.ecu_list.clone();
+                let dlt_buffer_clone = self.messages.clone();
+                let context = DashboardContext {
+                    ecu_list: &ecu_list_clone,
+                    dlt_buffer: &dlt_buffer_clone,
+                };
+                self.registry.update_all(PluginMessage::Tick(0), &context);
+            }
             Message::TcpIpChanged(ip) => self.tcp_ip = ip,
             Message::TcpPortChanged(port) => self.tcp_port = port,
             Message::ConnectTcp => {
@@ -141,11 +151,8 @@ impl Dashboard {
                 ecu_updates,
             } => {
                 self.process_dlt_messages(dlt_messages);
-
-                // // 2. Apply ECU updates
-                // apply_ecu_updates(&mut self.ecu_list, ecu_updates);
-                // self.ecu_list_view.set_ecu_list(self.ecu_list.clone());
-
+                apply_ecu_updates(&mut self.ecu_list, ecu_updates);
+                self.ecu_list_view.set_ecu_list(self.ecu_list.clone());
             }
 
             Message::SelectApp(ecu_id, app_id) => {

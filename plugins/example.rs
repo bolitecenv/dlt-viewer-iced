@@ -43,6 +43,7 @@ impl Plugin for ExamplePlugin {
                     }
                 }
             }
+            _ => {}
         }
         Task::none()
     }

@@ -32,6 +32,6 @@ pub trait Plugin: Send + Sync {
 
 #[derive(Debug, Clone)]
 pub enum PluginMessage {
-    // Each plugin defines its own message variants
-    Custom(String, Vec<u8>), // (plugin_name, serialized_data)
+    Tick(u64),
+    Custom(String, Vec<u8>),
 }

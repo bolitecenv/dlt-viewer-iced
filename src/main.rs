@@ -5,13 +5,14 @@ mod pages;
 mod types;
 mod module_view;
 mod plugin;
-mod plugins;
 mod plugin_registry;
 mod modal_window;
 mod utility;
 
 use app::Dashboard;
 
+#[path = "../plugins/mod.rs"]
+mod plugins;
 
 pub fn main() -> iced::Result {
     let initial_size = (1500.0, 900.0);

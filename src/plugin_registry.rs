@@ -1,9 +1,14 @@
-// src/plugin_registry.rs
 use std::collections::HashMap;
 use iced::Task;
 
 use crate::plugin::{DashboardContext, Plugin, PluginMessage};
-use crate::plugins::{example};
+
+// Auto Generated: use
+use crate::plugins::example;
+use crate::plugins::timer;
+
+// End Auto Generated: use
+
 
 pub struct PluginRegistry {
     plugins: HashMap<String, Box<dyn Plugin>>,
@@ -19,11 +24,14 @@ impl PluginRegistry {
         registry.register_all();
         registry
     }
-    
+
+// Auto Generated: register_all
     #[allow(unused_mut)]
     fn register_all(&mut self) {
         self.register::<example::ExamplePlugin>();
+        self.register::<timer::TimerPlugin>();
     }
+// End Auto Generated: register_all
     
     pub fn register<P: Plugin + 'static>(&mut self) {
         let plugin = P::new();
@@ -41,6 +49,15 @@ impl PluginRegistry {
         } else {
             Task::none()
         }
+    }
+
+    pub fn update_all(&mut self,
+        message: PluginMessage,
+        context: &DashboardContext,
+    ) -> Vec<Task<PluginMessage>> {
+        self.plugins.iter_mut().map(|(_name, plugin)| {
+            plugin.update(message.clone(), context)
+        }).collect()
     }
     
     pub fn get(&self, name: &str) -> Option<&Box<dyn Plugin>> {
