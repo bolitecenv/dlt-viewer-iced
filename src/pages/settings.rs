@@ -1,7 +1,6 @@
 use crate::message::Message;
 use iced::{
     Border, Color, Element, Length, Padding, Shadow, Theme,
-    alignment::{Horizontal, Vertical},
     border::Radius,
     widget::{Space, button, checkbox, column, container, row, text, text_input},
 };

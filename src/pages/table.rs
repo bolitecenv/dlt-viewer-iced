@@ -25,28 +25,6 @@ pub struct DltMessageRow {
 }
 
 impl DltMessageRow {
-    pub fn new(
-        index: u32,
-        timestamp: String,
-        ecu_id: String,
-        app_id: String,
-        context_id: String,
-        message_type: String,
-        payload: String,
-        length: usize,
-    ) -> Self {
-        Self {
-            index,
-            timestamp,
-            ecu_id,
-            app_id,
-            context_id,
-            message_type,
-            payload,
-            length,
-        }
-    }
-
     pub fn from_dlt_format(
         dlt_format: &DltFormat,
     ) -> Self {
