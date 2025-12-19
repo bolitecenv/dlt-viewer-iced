@@ -8,6 +8,7 @@ mod plugin;
 mod plugin_registry;
 mod modal_window;
 mod utility;
+mod ui;
 
 use app::Dashboard;
 

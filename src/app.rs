@@ -10,6 +10,7 @@ use crate::plugin::{DashboardContext, PluginMessage};
 use crate::plugin_registry::PluginRegistry;
 use crate::types::FrontDltEcuItem;
 use crate::message::ConnectionEvent;
+use crate::ui::footer_bar;
 use iced::futures::{self};
 use iced::widget::stack;
 use iced::{
@@ -313,7 +314,18 @@ impl Dashboard {
             .height(Length::Fill)
             .padding(20);
 
-        let main_layout = column![top, row![nav, content_area].height(Length::Fill)];
+        let footer = footer_bar::view(
+            &self.connection_status,
+            self.messages.len(),
+            &self.current_page,
+            self.dark_mode
+        );
+
+        let main_layout = column![
+            top,
+            row![nav, content_area].height(Length::Fill),
+            footer
+        ];
 
         let base_view = container(main_layout)
             .width(Length::Fill)
