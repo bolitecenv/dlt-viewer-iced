@@ -48,6 +48,7 @@ pub struct Dashboard {
     pub ecu_list: Vec<FrontDltEcuItem>,
     pub ecu_list_view: EcuListView,
     pub modal_window: Option<Box<dyn ModalWindowView>>,
+    pub dlt_table_scroll_offset: f32,
 }
 
 impl Default for Dashboard {
@@ -71,6 +72,7 @@ impl Default for Dashboard {
             ecu_list: Vec::new(),
             ecu_list_view: EcuListView::new(ecu_list.clone()),
             modal_window: None,
+            dlt_table_scroll_offset: 0.0,
         }
     }
 }
@@ -93,6 +95,9 @@ impl Dashboard {
             }
             Message::ClearMessages => {
                 self.messages.clear();
+            }
+            Message::ScrollChanged(viewport) => {
+                self.dlt_table_scroll_offset = viewport.absolute_offset().y;
             }
             Message::ConnectionEvent(event) => match event {
                 ConnectionEvent::Connected => {
@@ -283,7 +288,7 @@ impl Dashboard {
                 &self.tcp_port,
                 &self.connection_status,
             ),
-            Page::Table => pages::table::view(self.dark_mode, &self.messages),
+            Page::Table => pages::table::view(self.dark_mode, &self.messages, self.dlt_table_scroll_offset),
             Page::ChartCanvas => self.module_canvas.view(),
             Page::PluginPage(ref plugin_name) => {
                 if let Some(plugin) = self.registry.get_plugin(plugin_name) {

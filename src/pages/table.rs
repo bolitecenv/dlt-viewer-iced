@@ -10,6 +10,7 @@ use dlt_format_parser::DltFormat;
 
 // Number of rows to render at once (adjust based on performance needs)
 const VISIBLE_ROWS: usize = 100;
+const ROW_HEIGHT: f32 = 42.0; // Approximate height of each row
 
 #[derive(Debug, Clone)]
 pub struct DltMessageRow {
@@ -50,7 +51,7 @@ impl DltMessageRow {
         dlt_format: &DltFormat,
     ) -> Self {
         Self {
-            index: 0, // Will be set later
+            index: 0,
             timestamp: dlt_format.get_timestamp_string(),
             ecu_id: dlt_format.standard_header_extra.get_ecu().trim_end_matches('\0').to_string(),
             app_id: dlt_format.extended_header.get_apid().trim_end_matches('\0').to_string(),
@@ -65,6 +66,7 @@ impl DltMessageRow {
 pub fn view<'a>(
     dark_mode: bool,
     messages: &'a [DltMessageRow],
+    scroll_offset: f32, // Add this parameter to track scroll position
 ) -> Element<'a, Message> {
     let page_header = container(
         column![
@@ -176,11 +178,12 @@ pub fn view<'a>(
         left: 0.0,
     });
 
-    // Use lazy widget to prevent unnecessary rebuilds
+    let scroll_bucket = (scroll_offset / ROW_HEIGHT) as usize;
+
+
     let table_card = lazy(
-        (messages.len(), dark_mode),
-        // Clone messages into the closure so it owns the data (removes non-'static borrow)
-        move |_| create_table_card(dark_mode, messages.to_owned())
+        (messages.len(), dark_mode, scroll_bucket),
+        move |_| create_table_card(dark_mode, messages.to_owned(), scroll_offset)
     );
 
     let content = column![
@@ -208,11 +211,12 @@ pub fn view<'a>(
         })
         .into()
 }
+
 fn create_table_card(
     dark_mode: bool,
     messages: Vec<DltMessageRow>,
+    scroll_offset: f32,
 ) -> Element<'static, Message> {
-    // Table header
     let header = container(
         row![
             header_cell("#", 60.0, dark_mode),
@@ -259,7 +263,6 @@ fn create_table_card(
         ..Default::default()
     });
 
-    // Table rows - Virtual scrolling: only render recent messages
     let mut table_rows = column![].spacing(0);
     
     if messages.is_empty() {
@@ -275,7 +278,7 @@ fn create_table_card(
                         }),
                     }),
                 Space::new().height(Length::Fixed(8.0)),
-                text::<Theme, _>("Connect to a TCP server to receive DLT messages")
+                text::<Theme, _>("Connect to a DLT Daemon to receive DLT messages")
                     .size(13)
                     .style(|theme: &Theme| text::Style {
                         color: Some(if matches!(theme, Theme::Dark) {
@@ -299,32 +302,20 @@ fn create_table_card(
         
         table_rows = table_rows.push(empty_state);
     } else {
-        // Virtual scrolling: only render the last VISIBLE_ROWS messages
-        let start_idx = messages.len().saturating_sub(VISIBLE_ROWS);
+        // Calculate which rows should be visible based on scroll position
+        let total_messages = messages.len();
+        let start_idx = (scroll_offset / ROW_HEIGHT).floor() as usize;
+        let start_idx = start_idx.min(total_messages.saturating_sub(1));
+        let end_idx = (start_idx + VISIBLE_ROWS).min(total_messages);
         
-        // Show indicator if there are more messages
+        // Add spacer for rows before the visible range
         if start_idx > 0 {
-            let indicator_color = if dark_mode {
-                Color::from_rgb(0.5, 0.5, 0.5)
-            } else {
-                Color::from_rgb(0.6, 0.6, 0.6)
-            };
-            
-            let older_indicator = container(
-                text::<Theme, _>(format!("+ {} older messages not shown (showing last {})", start_idx, VISIBLE_ROWS))
-                    .size(11)
-                    .color(indicator_color)
-            )
-            .padding(Padding {
-                top: 8.0,
-                right: 16.0,
-                bottom: 8.0,
-                left: 16.0,
-            })
-            .width(Length::Fill)
-            .center_x(Length::Fill);
-            
-            table_rows = table_rows.push(older_indicator);
+            let spacer_height = start_idx as f32 * ROW_HEIGHT;
+            table_rows = table_rows.push(
+                Space::new()
+                    .width(Length::Fill)
+                    .height(Length::Fixed(spacer_height))
+            );
         }
         
         // Pre-compute colors for better performance
@@ -353,9 +344,19 @@ fn create_table_card(
         };
         
         // Render only visible messages
-        for msg in messages.iter().skip(start_idx) {
+        for msg in messages.iter().skip(start_idx).take(end_idx - start_idx) {
             let row_widget = create_table_row(msg, text_color, even_bg, odd_bg, border_color);
             table_rows = table_rows.push(row_widget);
+        }
+        
+        // Add spacer for rows after the visible range
+        if end_idx < total_messages {
+            let spacer_height = (total_messages - end_idx) as f32 * ROW_HEIGHT;
+            table_rows = table_rows.push(
+                Space::new()
+                    .width(Length::Fill)
+                    .height(Length::Fixed(spacer_height))
+            );
         }
     }
 
@@ -366,7 +367,8 @@ fn create_table_card(
         ]
         .spacing(0)
     )
-    .height(Length::Fill);
+    .height(Length::Fill)
+    .on_scroll(Message::ScrollChanged); // Add scroll event handler
 
     container(scrollable_content)
         .width(Length::Fill)
@@ -398,6 +400,7 @@ fn create_table_card(
         })
         .into()
 }
+
 fn header_cell(label: &'static str, width: f32, dark_mode: bool) -> Element<'static, Message> {
     let color = if dark_mode {
         Color::from_rgb(0.8, 0.8, 0.8)
@@ -423,7 +426,6 @@ fn create_table_row(
 ) -> Element<'static, Message> {
     let is_even = msg.index % 2 == 0;
     
-    // Create owned strings for numeric and text values
     let index_str = msg.index.to_string();
     let length_str = msg.length.to_string();
     let timestamp = msg.timestamp.clone();
@@ -433,7 +435,6 @@ fn create_table_row(
     let message_type = msg.message_type.clone();
     let payload = msg.payload.clone();
     
-    // Pre-compute background color
     let bg_color = if is_even { even_bg } else { odd_bg };
     
     container(
@@ -470,7 +471,6 @@ fn create_table_row(
     .into()
 }
 
-// Optimized table cell that accepts an owned String so widgets own their data
 fn table_cell_optimized(content: String, width: f32, text_color: Color) -> Element<'static, Message> {
     container(
         text::<Theme, _>(content)

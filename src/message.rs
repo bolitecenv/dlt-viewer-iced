@@ -8,6 +8,7 @@ use crate::{
     pages::table::DltMessageRow,
 };
 use iced::Point;
+use iced::widget::scrollable::Viewport;
 
 #[derive(Debug, Clone)]
 pub enum ConnectionEvent {
@@ -32,6 +33,8 @@ pub enum Message {
     UpdateTraceStatus(String),
     SaveContextSettings,
     CancelEditContext,
+
+    ScrollChanged(Viewport),
 
     PluginSelected(String),
     PluginMessage(String, PluginMessage),

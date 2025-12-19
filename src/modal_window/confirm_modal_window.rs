@@ -1,20 +1,14 @@
-use std::any::Any;
-
-use crate::app::ICON_FONT;
 use crate::modal_window::modal_window::{ModalConfig, ModalWindowMessage, ModalWindowView, deserialize_message, serialize_message};
 use crate::message::Message;
 use crate::module_view::ModuleWidget;
 use iced::Task;
-use iced::widget::text_input;
 use iced::{
     Color, Element, Length,
     widget::{
         column, container, row, text
     },
 };
-use serde::{Deserialize, Serialize};
-use bincode::{Encode, Decode, encode_to_vec, decode_from_slice, config};
-use bincode::error::{EncodeError, DecodeError};
+use bincode::{Encode, Decode};
 
 // Confirmation dialog modal
 #[derive(Debug, Clone, Encode, Decode)]
@@ -98,13 +92,5 @@ impl ModalWindowView for ConfirmModal {
             _ => {},
         }
         Task::none()
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
     }
 }

@@ -219,9 +219,6 @@ pub trait ModalWindowView {
             )
         ).into()
     }
-
-    fn as_any(&self) -> &dyn Any;
-    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 pub fn serialize_message<T>(msg: &T) -> Result<Vec<u8>, EncodeError> 
