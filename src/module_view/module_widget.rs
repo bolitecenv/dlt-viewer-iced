@@ -199,9 +199,62 @@ pub trait ModuleWidgetWindowView: Send + Sync {
     }
     fn draw(&self, frame: &mut canvas::Frame, dark_mode: bool);
     fn window_draw(&self, frame: &mut canvas::Frame, dark_mode: bool) {
+
+        let corner_radius = 8.0;
+        let elevation_offset: f32 = 2.0;
+
         // Draw window border and bg
         let window = self.get_window();
-        frame.fill_rectangle(window.position, window.size, window.bg_color);
+        let safe_width = window.size.width.max(MIN_CHART_WIDTH);
+        let safe_height = window.size.height.max(MIN_CHART_HEIGHT);
+
+        // Draw border
+        let shadow_color = if dark_mode {
+        Color::from_rgba(0.0, 0.0, 0.0, 0.5)
+        } else {
+            Color::from_rgba(0.0, 0.0, 0.0, 0.2)
+        };
+
+        let shadow_path = canvas::Path::rounded_rectangle(
+            Point::new(
+                window.position.x + elevation_offset,
+                window.position.y + elevation_offset,
+            ),
+            Size::new(safe_width, safe_height),
+            corner_radius.into(),
+        );
+
+        frame.fill(&shadow_path, shadow_color);
+
+        // Draw card background
+        let chart_bg = if dark_mode {
+            Color::from_rgba(0.2, 0.2, 0.25, 0.95)
+        } else {
+            Color::from_rgba(1.0, 1.0, 1.0, 0.95)
+        };
+
+        let bg_path = canvas::Path::rounded_rectangle(
+            window.position,
+            Size::new(safe_width, safe_height),
+            corner_radius.into(),
+        );
+
+        frame.fill(&bg_path, chart_bg);
+
+
+        // Draw border
+        let border = canvas::Path::rounded_rectangle(
+            window.position,
+            Size::new(safe_width, safe_height),
+            corner_radius.into(),
+        );
+
+        frame.stroke(
+            &border,
+            canvas::Stroke::default()
+                .with_color(Color::from_rgba(0.8, 0.8, 0.8, 1.0))
+                .with_width(1.0),
+        );
 
         self.draw(frame, dark_mode);
     }
