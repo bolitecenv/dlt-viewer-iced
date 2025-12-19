@@ -1,18 +1,22 @@
 // plugins/example.rs
-use crate::plugin::{DashboardContext, Plugin, PluginMessage};
+use crate::{plugin::{DashboardContext, Plugin, PluginMessage}, utility::util::deserialize_message};
+use bincode::{Decode, Encode, config, encode_to_vec};
 use iced::{widget::{column, text, button}, Element, Task};
 
 pub struct ExamplePlugin {
     counter: i32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Encode, Decode)]
 pub enum ExampleMessage {
     IncrementPressed,
 }
 
 impl ExampleMessage {
-
+    fn create_custom_message(msg: ExampleMessage) -> PluginMessage {
+        let data = encode_to_vec(&msg, config::standard()).unwrap();
+        PluginMessage::Custom("example_plugin".to_string(), data)
+    }
 }
 
 impl Plugin for ExamplePlugin {
@@ -28,23 +32,27 @@ impl Plugin for ExamplePlugin {
         Self { counter: 0 }
     }
 
-    fn update(&mut self, message: PluginMessage, context: &DashboardContext) -> Task<PluginMessage> {
-        if let PluginMessage::Custom(name, _) = message {
-            if name == "increment" {
-                self.counter += 1;
-                println!("context ecu_list length: {}", context.ecu_list.len());
-                println!("context dlt_buffer length: {}", context.dlt_buffer.len());
+    fn update(&mut self, message: PluginMessage, _context: &DashboardContext) -> Task<PluginMessage> {
+        match message {
+            PluginMessage::Custom(_name, data) => {
+                if let Ok(msg) = deserialize_message::<ExampleMessage>(&data) {
+                    match msg {
+                        ExampleMessage::IncrementPressed => {
+                            self.counter += 1;
+                        }
+                    }
+                }
             }
         }
         Task::none()
     }
 
-    fn view(&self, context: &DashboardContext) -> Element<PluginMessage> {
+    fn view(&self, _context: &DashboardContext) -> Element<'_, PluginMessage> {
         column![
             text("Example Plugin").size(24),
             text(format!("Counter: {}", self.counter)),
             button("Count Up")
-                .on_press(PluginMessage::Custom("increment".to_string(), vec![])),
+                .on_press(ExampleMessage::create_custom_message(ExampleMessage::IncrementPressed)),
         ]
         .spacing(10)
         .padding(20)
