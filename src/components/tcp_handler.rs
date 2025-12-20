@@ -4,15 +4,18 @@ use crate::types::{FrontDltAppIdItem, FrontDltCtxIdItem, FrontDltEcuItem};
 
 use std::collections::HashMap;
 use std::ops::Sub;
+use std::sync::{Arc};
+use tokio::sync::Mutex;
 use std::time::Duration;
 
+use bincode::de;
 use dlt_format_parser::{
     DltFormat, DltParse, LogInfoData, Mtin, ServiceGetLogInfoResponse, ServiceHandler, 
     ServiceParser, ServiceResponse, ServiceResult, ServiceSetLogLevelRequest, 
     ServiceSetTraceStatusRequest, find_dlt_header
 };
 use futures::io::BufReader;
-use iced::Subscription;
+use iced::{Subscription, Task};
 use tokio::net::TcpStream;
 use tokio::time::sleep;
 use crate::message::ConnectionEvent;
@@ -38,161 +41,149 @@ const RECONNECT_DELAY_SECS: u64 = 5;
 // Public API
 // ============================================================================
 
-use futures::StreamExt; // for unfold
+use futures::{StreamExt, stream}; // for unfold
 use std::hash::Hash;
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 struct ConnectionConfig {
     ip: String,
     port: String,
 }
 
-pub fn tcp_connection_subscription(ip: String, port: String) -> Subscription<Message> {
-    let config = ConnectionConfig { ip, port };
-
-    // run_with takes:
-    // 1. The data (must be Hash + Send + 'static)
-    // 2. A function pointer (NOT a capturing closure) that takes &Data
-    Subscription::run_with(config, |config| {
-        let addr = format!("{}:{}", config.ip, config.port);
-        
-        futures::stream::unfold(
-            ConnectionState::Disconnected,
-            move |state| {
-                let addr = addr.clone();
-                async move {
-                    let result = handle_connection_state(state, addr).await;
-                    
-                    // Always wait before the next iteration
-                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-
-                    result
-                }
-            },
-        )
-    })
+#[derive(Clone)]
+pub struct TCPClient {
+    name: String,
+    config: ConnectionConfig,
+    stream: Option<Arc<Mutex<TcpStream>>>,
+    buffer: Vec<u8>,
+    messages_parsed: u32,
 }
 
-// ============================================================================
-// Connection State Handlers
-// ============================================================================
+#[derive(Clone)]
+pub struct TCPClientsHandler {
+    clients: HashMap<String, TCPClient>,
+}
 
-async fn handle_connection_state(
-    state: ConnectionState,
-    addr: String,
-) -> Option<(Message, ConnectionState)> {
-    match state {
-        ConnectionState::Disconnected => handle_disconnected_state(addr).await,
-        ConnectionState::Connected { stream, buffer, messages_parsed } => {
-            handle_connected_state(stream, buffer, messages_parsed).await
+impl TCPClientsHandler {
+    pub fn new() -> Self {
+        Self {
+            clients: HashMap::new(),
         }
     }
-}
 
-async fn handle_disconnected_state(addr: String) -> Option<(Message, ConnectionState)> {
-    match TcpStream::connect(&addr).await {
-        Ok(stream) => handle_successful_connection(stream, addr).await,
-        Err(e) => handle_connection_failure(e, addr).await,
-    }
-}
-
-async fn handle_successful_connection(
-    mut stream: TcpStream,
-    addr: String,
-) -> Option<(Message, ConnectionState)> {
-    println!("Successfully connected to {}", addr);
-
-    // Send get software version request
-    let request_get_software_version = 
-        dlt_format_parser::dlt_generate_service_get_software_version_request();
-    
-    if let Err(e) = stream.try_write(&request_get_software_version) {
-        let error_msg = format!("Failed to send initial message: {}", e);
-        return Some((
-            Message::ConnectionEvent(ConnectionEvent::Error(error_msg)),
-            ConnectionState::Disconnected
-        ));
-    }
-    
-    Some((
-        Message::ConnectionEvent(ConnectionEvent::Connected),
-        ConnectionState::Connected {
-            stream,
+    pub fn add_client(&mut self, name: String, ip: String, port: String) {
+        let config = ConnectionConfig { ip, port };
+        let client = TCPClient {
+            name: name.clone(),
+            config,
+            stream: None,
             buffer: Vec::new(),
             messages_parsed: 0,
-        }
-    ))
-}
-
-async fn handle_connection_failure(
-    error: std::io::Error,
-    addr: String,
-) -> Option<(Message, ConnectionState)> {
-    println!("Connection failed: {}, retrying in {} seconds...", error, RECONNECT_DELAY_SECS);
-    sleep(Duration::from_secs(RECONNECT_DELAY_SECS)).await;
-    
-    Some((
-        Message::ConnectionEvent(ConnectionEvent::Error(error.to_string())),
-        ConnectionState::Disconnected
-    ))
-}
-
-// ============================================================================
-// Connected State Handlers
-// ============================================================================
-
-async fn handle_connected_state(
-    mut stream: TcpStream,
-    mut buffer: Vec<u8>,
-    mut messages_parsed: usize,
-) -> Option<(Message, ConnectionState)> {
-    let mut temp_buffer = vec![0u8; BUFFER_SIZE];
-    
-    match stream.read(&mut temp_buffer).await {
-        Ok(0) => handle_connection_closed(),
-        Ok(n) => handle_data_received(stream, buffer, messages_parsed, &temp_buffer[..n]).await,
-        Err(e) => handle_read_error(e),
+        };
+        self.clients.insert(name, client);
     }
-}
 
-fn handle_connection_closed() -> Option<(Message, ConnectionState)> {
-    println!("Connection closed by server");
-    Some((
-        Message::ConnectionEvent(ConnectionEvent::Disconnected),
-        ConnectionState::Disconnected
-    ))
-}
+    pub fn remove_client(&mut self, name: &str) {
+        self.clients.remove(name);
+    }
 
-async fn handle_data_received(
-    stream: TcpStream,
-    mut buffer: Vec<u8>,
-    mut messages_parsed: usize,
-    new_data: &[u8],
-) -> Option<(Message, ConnectionState)> {
-    buffer.extend_from_slice(new_data);
-    println!("Received {} bytes, total buffer size: {}", new_data.len(), buffer.len());
-    
-    let message_to_send = parse_dlt_messages(&mut buffer, &mut messages_parsed);
-    let message = message_to_send.unwrap_or(Message::Tick);
-    
-    println!("Total DLT messages parsed so far: {}", messages_parsed);
-    
-    Some((
-        message,
-        ConnectionState::Connected { 
-            stream, 
-            buffer,
-            messages_parsed
+    pub fn update_client_stream(&mut self, name: &str, stream: Arc<Mutex<TcpStream>>) {
+        if let Some(client) = self.clients.get_mut(name) {
+            client.stream = Some(stream);
         }
-    ))
-}
+    }
+    pub fn try_connect(&mut self, name: &str) -> Task<Message> {
+        if let Some(client) = self.clients.get(name) {
+            let address = format!("{}:{}", client.config.ip, client.config.port);
+            let name = name.to_string();
+            
+            Task::perform(
+                async move {
+                    match TcpStream::connect(&address).await {
+                        Ok(stream) => {
+                            Message::ConnectionEvent(
+                                ConnectionEvent::Connected(name, Arc::new(Mutex::new(stream)))
+                            )
+                        }
+                        Err(e) => {
+                            Message::ConnectionEvent(ConnectionEvent::Error(e.to_string()))
+                        }
+                    }
+                },
+                |msg| msg,
+            )
+        } else {
+            Task::perform(
+                async { () },
+                |_| Message::ConnectionEvent(ConnectionEvent::Error("Client not found".into()))
+            )
+        }
+    }
 
-fn handle_read_error(error: std::io::Error) -> Option<(Message, ConnectionState)> {
-    println!("Read error: {}", error);
-    Some((
-        Message::ConnectionEvent(ConnectionEvent::Error(error.to_string())),
-        ConnectionState::Disconnected
-    ))
+    pub fn try_send_by_name(&self, name: &String, data: &[u8]) -> Task<Message> {
+        if let Some(client) = self.clients.get(name) {
+            if let Some(stream_arc) = &client.stream {
+                let data = data.to_vec();
+                let stream_clone = Arc::clone(stream_arc);
+                tokio::spawn(async move {
+                    let mut stream_lock = stream_clone.lock().await;
+                    match stream_lock.write_all(&data).await {
+                        Ok(_) => Message::Tick,
+                        Err(e) => Message::ConnectionEvent(ConnectionEvent::Error(e.to_string())),
+                    }
+                });
+            }
+        }
+        
+        Task::perform(
+            async { () },
+            |_| Message::ConnectionEvent(ConnectionEvent::Error("Client not connected".into()))
+        )
+    }
+
+    pub fn start_receive(&self, name: &String) -> Task<Message> {
+        if let Some(client) = self.clients.get(name) {
+            if let Some(stream_arc) = &client.stream {
+                let stream_clone = Arc::clone(stream_arc);
+                return Task::perform(
+                    async move {
+                        TCPClientsHandler::receive_loop(&stream_clone).await
+                    },
+                    |msg| msg,
+                );
+            }
+        }
+        Task::perform(
+            async { () },
+            |_| Message::ConnectionEvent(ConnectionEvent::Error("Client not connected".into()))
+        )
+    }
+
+    async fn receive_loop(stream: &Arc<Mutex<TcpStream>>) -> Message {
+        let mut buffer = vec![0u8; 4096];
+        
+        loop {
+            let mut stream_lock = stream.lock().await;
+            
+            match stream_lock.read(&mut buffer).await {
+                Ok(0) => {
+                    // Connection closed
+                    return Message::ConnectionEvent(
+                        ConnectionEvent::Disconnected
+                    );
+                }
+                Ok(n) => {
+                    // Data received
+                    println!("Received {} bytes", n);
+                }
+                Err(e) => {
+                    return Message::ConnectionEvent(
+                        ConnectionEvent::Error(format!("Receive error: {}", e))
+                    );
+                }
+            }
+        }
+    }
 }
 
 fn parse_dlt_messages(buffer: &mut Vec<u8>, messages_parsed: &mut usize) -> Option<Message> {

@@ -9,13 +9,15 @@ use crate::{
 };
 use iced::Point;
 use iced::widget::scrollable::Viewport;
+use tokio::net::TcpStream;
+use std::sync::{Arc};
+use tokio::sync::Mutex;
 
 #[derive(Debug, Clone)]
 pub enum ConnectionEvent {
-    Connected,
+    Connected(String, Arc<Mutex<TcpStream>>),
     Disconnected,
     Error(String),
-    DltMessageReceived(Vec<DltMessageRow>),
 }
 
 #[derive(Debug, Clone)]

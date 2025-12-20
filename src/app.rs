@@ -1,4 +1,4 @@
-use crate::components::tcp_handler::{apply_ecu_updates, tcp_connection_subscription};
+use crate::components::tcp_handler::{TCPClient, TCPClientsHandler, apply_ecu_updates};
 use crate::components::{navigation, top_bar};
 use crate::message::{Message, Page};
 use crate::module_view::ModuleCanvas;
@@ -50,6 +50,7 @@ pub struct Dashboard {
     pub ecu_list_view: EcuListView,
     pub modal_window: Option<Box<dyn ModalWindowView>>,
     pub dlt_table_scroll_offset: f32,
+    pub tcp_clients: TCPClientsHandler
 }
 
 impl Default for Dashboard {
@@ -74,6 +75,7 @@ impl Default for Dashboard {
             ecu_list_view: EcuListView::new(ecu_list.clone()),
             modal_window: None,
             dlt_table_scroll_offset: 0.0,
+            tcp_clients: TCPClientsHandler::new(),
         }
     }
 }
@@ -102,7 +104,11 @@ impl Dashboard {
             Message::ConnectTcp => {
                 let _ip = self.tcp_ip.clone();
                 let _port = self.tcp_port.clone();
-                self.should_connect = true;
+                // self.should_connect = true;
+
+                self.tcp_clients.add_client("main_tcp_client".to_string(), _ip, _port);
+
+                return self.tcp_clients.try_connect("main_tcp_client");
             }
             Message::ClearMessages => {
                 self.messages.clear();
@@ -111,17 +117,19 @@ impl Dashboard {
                 self.dlt_table_scroll_offset = viewport.absolute_offset().y;
             }
             Message::ConnectionEvent(event) => match event {
-                ConnectionEvent::Connected => {
+                ConnectionEvent::Connected(name, stream) => {
                     self.connection_status = "Connected".to_string();
+                    println!("TCP Client '{}' connected.", name);
+                    self.tcp_clients.update_client_stream(&name, stream);
+                    self.tcp_clients.start_receive(&name);
+                    let _ = self.tcp_clients.try_send_by_name(&name, "Hello from DLT Viewer!".as_bytes());
                 }
                 ConnectionEvent::Disconnected => {
-                    self.connection_status = "Disconnected".to_string();
+                    println!("TCP Client disconnected.");
                 }
                 ConnectionEvent::Error(err) => {
+                    println!("Connection error: {}", err);
                     self.connection_status = format!("Error: {}", err);
-                }
-                ConnectionEvent::DltMessageReceived(data) => {
-                    self.process_dlt_messages(data);
                 }
             },
             Message::PluginSelected(name) => {
@@ -266,13 +274,7 @@ impl Dashboard {
             })
         });
 
-        let connection_subscription = if self.should_connect {
-            tcp_connection_subscription(self.tcp_ip.clone(), self.tcp_port.clone())
-        } else {
-            Subscription::none()
-        };
-
-        Subscription::batch(vec![tick_subscription, connection_subscription])
+        Subscription::batch(vec![tick_subscription])
     }
 
     pub fn theme(&self) -> Theme {
