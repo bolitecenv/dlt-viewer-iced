@@ -218,6 +218,7 @@ impl TCPClientsHandler {
                             Ok(n) => {
                                 read_state.buffer.extend_from_slice(&temp_buffer[..n]);
                                 let message = parse_dlt_messages(&mut read_state.buffer);
+                                // sleep(Duration::from_secs(1)).await;
                                 Some((message, read_state))
                             }
                             Err(e) => {
@@ -294,6 +295,7 @@ fn parse_dlt_messages(buffer: &mut Vec<u8>) -> Message {
                             buffer.clear();
                         } else {
                             println!("Failed to parse DLT message at offset {}, discarding up to next header", current_offset);
+                            break;
                         }
                     }
                 }
