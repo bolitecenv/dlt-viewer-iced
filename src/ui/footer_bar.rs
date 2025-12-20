@@ -49,6 +49,7 @@ pub fn view<'a>(
 
     // Current page
     let page_name = match current_page {
+        Page::Overview => "Overview",
         Page::Reports => "Reports",
         Page::ECUSetting => "ECU Settings",
         Page::Settings => "Settings",

@@ -59,7 +59,7 @@ impl Default for Dashboard {
         let ecu_list = Vec::new();
 
         Self {
-            current_page: Page::Table,
+            current_page: Page::Overview,
             dark_mode: false,
             tcp_ip: "127.0.0.1".to_string(),
             tcp_port: "3490".to_string(),
@@ -121,11 +121,11 @@ impl Dashboard {
                     self.connection_status = "Connected".to_string();
                     println!("TCP Client '{}' connected.", name);
                     self.tcp_clients.update_client_stream(&name, stream);
-                    self.tcp_clients.start_receive(&name);
-                    let _ = self.tcp_clients.try_send_by_name(&name, "Hello from DLT Viewer!".as_bytes());
+                    self.tcp_clients.set_client_status(&name, true);
                 }
-                ConnectionEvent::Disconnected => {
-                    println!("TCP Client disconnected.");
+                ConnectionEvent::Disconnected(name) => {
+                    println!("TCP Client '{}' disconnected.", name);
+                    self.tcp_clients.remove_client(&name);
                 }
                 ConnectionEvent::Error(err) => {
                     println!("Connection error: {}", err);
@@ -274,7 +274,21 @@ impl Dashboard {
             })
         });
 
-        Subscription::batch(vec![tick_subscription])
+        let mut tcp_subscription: Subscription<Message> = Subscription::none();
+
+        // Register subscriptions for all active TCP clients
+        for (name, client) in self.tcp_clients.get_all_clients() {
+            if client.status == true {
+                if let Some(stream) = &client.stream {
+                    tcp_subscription = TCPClientsHandler::create_client_subscription(
+                        name.clone(),
+                        stream.clone(),
+                    );
+                }
+            }
+        }
+
+        Subscription::batch(vec![tick_subscription, tcp_subscription])
     }
 
     pub fn theme(&self) -> Theme {
@@ -290,6 +304,7 @@ impl Dashboard {
         let nav = navigation::view(self.current_page.clone(), &self.registry, self.dark_mode);
 
         let main_content = match self.current_page {
+            Page::Overview => pages::overview::view( &self.tcp_clients, &self.tcp_ip, &self.tcp_port),
             Page::Reports => pages::placeholder::view("Reports", "📋", self.dark_mode),
             Page::ECUSetting => self.ecu_list_view.view(self.dark_mode),
             Page::Settings => pages::settings::view(

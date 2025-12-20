@@ -20,6 +20,8 @@ use tokio::net::TcpStream;
 use tokio::time::sleep;
 use crate::message::ConnectionEvent;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use iced::advanced::subscription::{self, Recipe};
+
 
 enum ConnectionState {
     Disconnected,
@@ -45,23 +47,24 @@ use futures::{StreamExt, stream}; // for unfold
 use std::hash::Hash;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-struct ConnectionConfig {
-    ip: String,
-    port: String,
+pub struct ConnectionConfig {
+    pub ip: String,
+    pub port: String,
 }
 
 #[derive(Clone)]
 pub struct TCPClient {
-    name: String,
-    config: ConnectionConfig,
-    stream: Option<Arc<Mutex<TcpStream>>>,
-    buffer: Vec<u8>,
-    messages_parsed: u32,
+    pub name: String,
+    pub status: bool,
+    pub config: ConnectionConfig,
+    pub stream: Option<Arc<Mutex<TcpStream>>>,
+    pub buffer: Vec<u8>,
+    pub messages_parsed: u32,
 }
 
 #[derive(Clone)]
 pub struct TCPClientsHandler {
-    clients: HashMap<String, TCPClient>,
+    pub clients: HashMap<String, TCPClient>,
 }
 
 impl TCPClientsHandler {
@@ -75,12 +78,27 @@ impl TCPClientsHandler {
         let config = ConnectionConfig { ip, port };
         let client = TCPClient {
             name: name.clone(),
+            status: false,
             config,
             stream: None,
             buffer: Vec::new(),
             messages_parsed: 0,
         };
         self.clients.insert(name, client);
+    }
+
+    pub fn set_client_status(&mut self, name: &str, status: bool) {
+        if let Some(client) = self.clients.get_mut(name) {
+            client.status = status;
+        }
+    }
+
+    pub fn get_client(&self, name: &str) -> Option<&TCPClient> {
+        self.clients.get(name)
+    }
+
+    pub fn get_all_clients(&self) -> &HashMap<String, TCPClient> {
+        &self.clients
     }
 
     pub fn remove_client(&mut self, name: &str) {
@@ -141,52 +159,96 @@ impl TCPClientsHandler {
         )
     }
 
-    pub fn start_receive(&self, name: &String) -> Task<Message> {
-        if let Some(client) = self.clients.get(name) {
-            if let Some(stream_arc) = &client.stream {
-                let stream_clone = Arc::clone(stream_arc);
-                return Task::perform(
-                    async move {
-                        TCPClientsHandler::receive_loop(&stream_clone).await
-                    },
-                    |msg| msg,
-                );
-            }
+    pub fn create_client_subscription(name: String, stream: Arc<Mutex<TcpStream>>) -> Subscription<Message> {
+        struct SubscriptionState {
+            id: String,
+            stream: Arc<Mutex<TcpStream>>,
         }
-        Task::perform(
-            async { () },
-            |_| Message::ConnectionEvent(ConnectionEvent::Error("Client not connected".into()))
-        )
-    }
-
-    async fn receive_loop(stream: &Arc<Mutex<TcpStream>>) -> Message {
-        let mut buffer = vec![0u8; 4096];
         
-        loop {
-            let mut stream_lock = stream.lock().await;
-            
-            match stream_lock.read(&mut buffer).await {
-                Ok(0) => {
-                    // Connection closed
-                    return Message::ConnectionEvent(
-                        ConnectionEvent::Disconnected
-                    );
-                }
-                Ok(n) => {
-                    // Data received
-                    println!("Received {} bytes", n);
-                }
-                Err(e) => {
-                    return Message::ConnectionEvent(
-                        ConnectionEvent::Error(format!("Receive error: {}", e))
-                    );
-                }
+        impl std::hash::Hash for SubscriptionState {
+            fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+                self.id.hash(state);
             }
         }
+        
+        Subscription::run_with(
+            SubscriptionState {
+                id: name.clone(),
+                stream: stream.clone(),
+            },
+            |state| {
+                let stream = state.stream.clone();
+                let id = state.id.clone();
+                
+                struct ReadState {
+                    stream: Arc<Mutex<TcpStream>>,
+                    buffer: Vec<u8>,
+                    id: String,
+                    should_terminate: bool,
+                }
+                
+                stream::unfold(
+                    ReadState {
+                        stream,
+                        buffer: Vec::with_capacity(BUFFER_SIZE),
+                        id,
+                        should_terminate: false,
+                    },
+                    |mut read_state| async move {
+                        if read_state.should_terminate {
+                            return None;
+                        }
+                        
+                        let value = read_state.id.clone();
+                        let mut temp_buffer = vec![0u8; BUFFER_SIZE];
+                        
+                        let read_result = {
+                            let mut lock = read_state.stream.lock().await;
+                            lock.read(&mut temp_buffer).await
+                        };
+                        
+                        match read_result {
+                            Ok(0) => {
+                                read_state.should_terminate = true;
+                                Some((
+                                    Message::ConnectionEvent(ConnectionEvent::Disconnected(value)),
+                                    read_state
+                                ))
+                            }
+                            Ok(n) => {
+                                read_state.buffer.extend_from_slice(&temp_buffer[..n]);
+                                let message = parse_dlt_messages(&mut read_state.buffer);
+                                Some((message, read_state))
+                            }
+                            Err(e) => {
+                                use std::io::ErrorKind;
+                                
+                                let is_temporary = matches!(
+                                    e.kind(),
+                                    ErrorKind::WouldBlock | ErrorKind::Interrupted
+                                );
+                                
+                                if is_temporary {
+                                    None
+                                } else {
+                                    read_state.should_terminate = true;
+                                    Some((
+                                        Message::ConnectionEvent(ConnectionEvent::Error(
+                                            format!("Fatal error: {}", e)
+                                        )),
+                                        read_state
+                                    ))
+                                }
+                            }
+                        }
+                    }
+                )
+            }
+        )
     }
 }
 
-fn parse_dlt_messages(buffer: &mut Vec<u8>, messages_parsed: &mut usize) -> Option<Message> {
+fn parse_dlt_messages(buffer: &mut Vec<u8>) -> Message {
     let mut parsed_messages = Vec::new();
     let mut service_responses = Vec::new();
     let mut current_offset = 0;
@@ -203,10 +265,6 @@ fn parse_dlt_messages(buffer: &mut Vec<u8>, messages_parsed: &mut usize) -> Opti
                                 // Successfully parsed a message
                                 let dlt_message_row = DltMessageRow::from_dlt_format(&dlt_format);
                                 parsed_messages.push(dlt_message_row);
-                                *messages_parsed += 1;
-                                if (*messages_parsed % 100) == 0 {
-                                    println!("Parsed {} DLT messages", messages_parsed);
-                                }
                             }
 
                             Mtin::Control(_) => {
@@ -262,11 +320,11 @@ fn parse_dlt_messages(buffer: &mut Vec<u8>, messages_parsed: &mut usize) -> Opti
         buffer.drain(0..current_offset);
         println!("Removed {} bytes from buffer, {} bytes remaining", current_offset, buffer.len());
     }
-    
-    Some(Message::BatchUpdate {
-                dlt_messages: parsed_messages,
-                ecu_updates: service_responses,
-    })
+
+    Message::BatchUpdate {
+        dlt_messages: parsed_messages,
+        ecu_updates: service_responses,
+    }
 }
 
 // ============================================================================

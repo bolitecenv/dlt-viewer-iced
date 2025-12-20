@@ -16,7 +16,7 @@ use tokio::sync::Mutex;
 #[derive(Debug, Clone)]
 pub enum ConnectionEvent {
     Connected(String, Arc<Mutex<TcpStream>>),
-    Disconnected,
+    Disconnected(String),
     Error(String),
 }
 
@@ -62,10 +62,15 @@ pub enum Message {
     OpenSettingsModal,
     CloseSettingsModal,
     ModalWindowMessage(ModalWindowMessage),
+
+    IpChanged(String),
+    PortChanged(String),
+    AddClient,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Page {
+    Overview,
     Reports,
     ECUSetting,
     Settings,
