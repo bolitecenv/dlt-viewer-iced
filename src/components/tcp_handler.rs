@@ -294,7 +294,7 @@ fn parse_dlt_messages(buffer: &mut Vec<u8>) -> Message {
                             println!("Failed to parse DLT message at offset {}, discarding entire buffer", current_offset);
                             buffer.clear();
                         } else {
-                            println!("Failed to parse DLT message at offset {}, discarding up to next header", current_offset);
+                            // println!("Failed to parse DLT message at offset {}, discarding up to next header", current_offset);
                             break;
                         }
                     }
