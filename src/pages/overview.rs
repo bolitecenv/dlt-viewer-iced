@@ -6,27 +6,32 @@ use crate::message::Message;
 /// The main view function for this page
 pub fn view<'a>(
     clients_handler: &'a TCPClientsHandler,
+    current_tcp_client_name: &'a str,
     current_ip: &'a str,
     current_port: &'a str,
 ) -> Element<'a, Message> {
-    
-    // 1. The Input Row (IP, Port, + Button)
+
+    let client_name = text_input("Client Name", current_tcp_client_name)
+        .on_input(Message::TcpClientNameChanged)
+        .padding(10)
+        .width(Length::Fixed(200.0));
+
     let ip_input = text_input("IP Address", current_ip)
-        .on_input(Message::IpChanged)
+        .on_input(Message::TcpIpChanged)
         .padding(10)
         .width(Length::Fixed(200.0));
 
     let port_input = text_input("Port", current_port)
-        .on_input(Message::PortChanged)
+        .on_input(Message::TcpPortChanged)
         .padding(10)
         .width(Length::Fixed(100.0));
 
-    let add_button = button(text("+ Add Daemon"))
+    let add_button = button(text("+ Add Client"))
         .on_press(Message::ConnectTcp) // Sends the Message when clicked
         .padding(10)
         .style(button::primary);
 
-    let controls = row![ip_input, port_input, add_button]
+    let controls = row![client_name, ip_input, port_input, add_button]
         .spacing(10)
         .align_y(iced::Alignment::Center);
 

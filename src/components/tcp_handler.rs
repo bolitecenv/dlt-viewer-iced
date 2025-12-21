@@ -74,17 +74,17 @@ impl TCPClientsHandler {
         }
     }
 
-    pub fn add_client(&mut self, name: String, ip: String, port: String) {
+    pub fn add_client(&mut self, name: &str, ip: String, port: String) {
         let config = ConnectionConfig { ip, port };
         let client = TCPClient {
-            name: name.clone(),
+            name: name.to_string(),
             status: false,
             config,
             stream: None,
             buffer: Vec::new(),
             messages_parsed: 0,
         };
-        self.clients.insert(name, client);
+        self.clients.insert(name.to_string(), client);
     }
 
     pub fn set_client_status(&mut self, name: &str, status: bool) {

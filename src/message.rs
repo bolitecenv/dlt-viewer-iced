@@ -1,13 +1,10 @@
 use crate::components::tcp_handler::EcuUpdateInfo;
 use crate::modal_window::modal_window::ModalWindowMessage;
-use crate::module_view::ModuleCanvas;
 use crate::module_view::canvas::{ModuleCanvasMessage};
-use crate::module_view::setting_modals::setting_modal_window::SettingModalMessage;
 use crate::plugin::PluginMessage;
 use crate::{
     pages::table::DltMessageRow,
 };
-use iced::Point;
 use iced::widget::scrollable::Viewport;
 use tokio::net::TcpStream;
 use std::sync::{Arc};
@@ -27,6 +24,7 @@ pub enum Message {
     Tick,
     TcpIpChanged(String),
     TcpPortChanged(String),
+    TcpClientNameChanged(String),
     ConnectTcp,
     ConnectionEvent(ConnectionEvent),
     ClearMessages,
@@ -38,10 +36,8 @@ pub enum Message {
 
     ScrollChanged(Viewport),
 
-    PluginSelected(String),
     PluginMessage(String, PluginMessage),
 
-    EcuListUpdate(Vec<EcuUpdateInfo>),
     BatchUpdate {
         dlt_messages: Vec<DltMessageRow>,
         ecu_updates: Vec<EcuUpdateInfo>,
@@ -59,19 +55,13 @@ pub enum Message {
     // Module Canvas Events
     ModuleCanvasMessage(ModuleCanvasMessage),
 
-    OpenSettingsModal,
     CloseSettingsModal,
     ModalWindowMessage(ModalWindowMessage),
-
-    IpChanged(String),
-    PortChanged(String),
-    AddClient,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Page {
     Overview,
-    Reports,
     ECUSetting,
     Settings,
     Table,

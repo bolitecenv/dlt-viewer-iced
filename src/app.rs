@@ -36,6 +36,7 @@ pub const ICON_FONT: Font = Font {
 pub struct Dashboard {
     pub current_page: Page,
     pub dark_mode: bool,
+    pub tcp_client_name: String,
     pub tcp_ip: String,
     pub tcp_port: String,
     pub connection_status: String,
@@ -45,7 +46,6 @@ pub struct Dashboard {
     pub max_messages: usize,
     pub module_canvas: ModuleCanvas,
     pub registry: PluginRegistry,
-    pub current_plugin: Option<String>,
     pub ecu_list: Vec<FrontDltEcuItem>,
     pub ecu_list_view: EcuListView,
     pub modal_window: Option<Box<dyn ModalWindowView>>,
@@ -61,6 +61,7 @@ impl Default for Dashboard {
         Self {
             current_page: Page::Overview,
             dark_mode: false,
+            tcp_client_name: "main_tcp_client".to_string(),
             tcp_ip: "127.0.0.1".to_string(),
             tcp_port: "3490".to_string(),
             connection_status: "Disconnected".to_string(),
@@ -70,7 +71,6 @@ impl Default for Dashboard {
             max_messages: 1000000000,
             module_canvas: ModuleCanvas::new(),
             registry: PluginRegistry::new(),
-            current_plugin: None,
             ecu_list: Vec::new(),
             ecu_list_view: EcuListView::new(ecu_list.clone()),
             modal_window: None,
@@ -99,6 +99,7 @@ impl Dashboard {
                 };
                 self.registry.update_all(PluginMessage::Tick(0), &context);
             }
+            Message::TcpClientNameChanged(name) => self.tcp_client_name = name,
             Message::TcpIpChanged(ip) => self.tcp_ip = ip,
             Message::TcpPortChanged(port) => self.tcp_port = port,
             Message::ConnectTcp => {
@@ -106,9 +107,9 @@ impl Dashboard {
                 let _port = self.tcp_port.clone();
                 // self.should_connect = true;
 
-                self.tcp_clients.add_client("main_tcp_client".to_string(), _ip, _port);
+                self.tcp_clients.add_client(&self.tcp_client_name, _ip, _port);
 
-                return self.tcp_clients.try_connect("main_tcp_client");
+                return self.tcp_clients.try_connect(&self.tcp_client_name);
             }
             Message::ClearMessages => {
                 self.messages.clear();
@@ -132,9 +133,6 @@ impl Dashboard {
                     self.connection_status = format!("Error: {}", err);
                 }
             },
-            Message::PluginSelected(name) => {
-                self.current_plugin = Some(name);
-            }
             Message::PluginMessage(plugin_name, msg) => {
                 // Clone the dashboard data so the context does not hold an immutable borrow of `self`
                 // while we need a mutable borrow for `self.registry.update`.
@@ -149,12 +147,6 @@ impl Dashboard {
                     Message::PluginMessage(plugin_name.clone(), plugin_msg)
                 });
             }
-            Message::EcuListUpdate(ecu_updates) => {
-                // Apply ECU updates to your ecu_list
-                // apply_ecu_updates(&mut self.ecu_list, ecu_updates);
-                // self.ecu_list_view.set_ecu_list(self.ecu_list.clone());
-            }
-
             Message::BatchUpdate {
                 dlt_messages,
                 ecu_updates,
@@ -239,9 +231,6 @@ impl Dashboard {
             Message::ModuleCanvasMessage(message) => {
                 return self.module_canvas.update(message, &mut self.modal_window);
             },
-            Message::OpenSettingsModal => {
-                // Open your settings modal here
-            },
             Message::CloseSettingsModal => {
                 // Close your settings modal here
                 self.modal_window = None;
@@ -304,8 +293,10 @@ impl Dashboard {
         let nav = navigation::view(self.current_page.clone(), &self.registry, self.dark_mode);
 
         let main_content = match self.current_page {
-            Page::Overview => pages::overview::view( &self.tcp_clients, &self.tcp_ip, &self.tcp_port),
-            Page::Reports => pages::placeholder::view("Reports", "📋", self.dark_mode),
+            Page::Overview => pages::overview::view( &self.tcp_clients, 
+                                                            &self.tcp_client_name,
+                                                          &self.tcp_ip, 
+                                                                        &self.tcp_port),
             Page::ECUSetting => self.ecu_list_view.view(self.dark_mode),
             Page::Settings => pages::settings::view(
                 self.dark_mode,
@@ -334,7 +325,6 @@ impl Dashboard {
         let footer = footer_bar::view(
             &self.connection_status,
             self.messages.len(),
-            &self.current_page,
             self.dark_mode
         );
 

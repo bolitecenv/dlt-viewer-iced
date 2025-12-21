@@ -1,13 +1,12 @@
 use iced::{
-    widget::{container, row, text, Row, Space},
+    widget::{container, row, text, Space},
     Element, Length, alignment,
 };
-use crate::message::{Message, Page};
+use crate::message::Message;
 
 pub fn view<'a>(
     connection_status: &str,
     message_count: usize,
-    current_page: &Page,
     dark_mode: bool,
 ) -> Element<'a, Message> {
     let (bg_color, text_color, border_color) = if dark_mode {
@@ -47,22 +46,6 @@ pub fn view<'a>(
             color: Some(iced::Color::from_rgb8(text_color[0], text_color[1], text_color[2])),
         });
 
-    // Current page
-    let page_name = match current_page {
-        Page::Overview => "Overview",
-        Page::Reports => "Reports",
-        Page::ECUSetting => "ECU Settings",
-        Page::Settings => "Settings",
-        Page::Table => "Message Table",
-        Page::ChartCanvas => "Chart Canvas",
-        Page::PluginPage(name) => name,
-    };
-
-    let page_info = text(format!("Page: {}", page_name))
-        .size(14)
-        .style(move |_theme| iced::widget::text::Style {
-            color: Some(iced::Color::from_rgb8(text_color[0], text_color[1], text_color[2])),
-        });
 
     // System time (optional)
     let time_text = text(chrono::Local::now().format("%H:%M:%S").to_string())
@@ -77,8 +60,6 @@ pub fn view<'a>(
         status_text,
         Space::new().width(20),
         msg_count,
-        Space::new().width(20),
-        page_info,
         Space::new().width(Length::Fill),
         time_text,
     ]
