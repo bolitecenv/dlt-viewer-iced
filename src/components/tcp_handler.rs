@@ -74,7 +74,12 @@ impl TCPClientsHandler {
         }
     }
 
-    pub fn add_client(&mut self, name: &str, ip: String, port: String) {
+    pub fn add_client(&mut self, name: &str, ip: String, port: String) -> Result<(), String> {
+        // Check if client already exists
+        if self.clients.contains_key(name) {
+            return Err("Client already exists".into());
+        }
+        
         let config = ConnectionConfig { ip, port };
         let client = TCPClient {
             name: name.to_string(),
@@ -85,6 +90,7 @@ impl TCPClientsHandler {
             messages_parsed: 0,
         };
         self.clients.insert(name.to_string(), client);
+        Ok(())
     }
 
     pub fn set_client_status(&mut self, name: &str, status: bool) {

@@ -105,7 +105,13 @@ impl Dashboard {
                 let _port = self.tcp_port.clone();
                 // self.should_connect = true;
 
-                self.tcp_clients.add_client(&self.tcp_client_name, _ip, _port);
+                if self.tcp_clients.add_client(&self.tcp_client_name, _ip, _port).is_err() {
+                    self.modal_window = Some(Box::new(crate::modal_window::confirm_modal_window::ConfirmModal::new(
+                        "Error".to_string(),
+                        format!("TCP Client with name '{}' already exists.", self.tcp_client_name),
+                    )));
+                    return Task::none();
+                }
 
                 return self.tcp_clients.try_connect(&self.tcp_client_name);
             }
