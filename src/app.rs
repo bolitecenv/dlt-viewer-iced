@@ -1,4 +1,4 @@
-use crate::components::tcp_handler::{TCPClient, TCPClientsHandler, apply_ecu_updates};
+use crate::components::tcp_handler::{TCPClientsHandler, apply_ecu_updates};
 use crate::components::{navigation, top_bar};
 use crate::message::{Message, Page};
 use crate::module_view::ModuleCanvas;
@@ -40,7 +40,6 @@ pub struct Dashboard {
     pub tcp_ip: String,
     pub tcp_port: String,
     pub connection_status: String,
-    pub should_connect: bool,
     pub messages: Vec<DltMessageRow>,
     pub message_id_counter: u32,
     pub max_messages: usize,
@@ -65,7 +64,6 @@ impl Default for Dashboard {
             tcp_ip: "127.0.0.1".to_string(),
             tcp_port: "3490".to_string(),
             connection_status: "Disconnected".to_string(),
-            should_connect: false,
             messages: Vec::new(),
             message_id_counter: 0,
             max_messages: 1000000000,

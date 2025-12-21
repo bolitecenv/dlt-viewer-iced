@@ -1,8 +1,7 @@
-use std::any::Any;
-
 use iced::{Element, Task};
-
-use crate::{message::Message, modal_window::modal_window::{ModalConfig, ModalWindowMessage, ModalWindowView}, module_view::{ModuleWidget, module_widget::ModuleWidgetWindowView}};
+use crate::{message::Message, 
+    modal_window::modal_window::{ModalConfig, ModalWindowMessage, ModalWindowView}, 
+    module_view::{ModuleWidget}};
 
 
 #[derive(Debug, Clone)]

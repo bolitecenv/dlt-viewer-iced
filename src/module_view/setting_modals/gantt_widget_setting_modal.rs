@@ -11,7 +11,6 @@ use iced::{
         column, row, text, Space, text_input, checkbox
     }
 };
-use std::any::Any;
 use bincode::{Encode, Decode};
 
 #[derive(Debug, Clone, Encode, Decode)]
