@@ -11,6 +11,7 @@ use crate::plugin_registry::PluginRegistry;
 use crate::types::FrontDltEcuItem;
 use crate::message::ConnectionEvent;
 use crate::ui::footer_bar;
+use dlt_format_parser::service_generate;
 use iced::futures::{self};
 use iced::widget::stack;
 use iced::{
@@ -125,6 +126,10 @@ impl Dashboard {
                 ConnectionEvent::Connected(name, stream) => {
                     self.connection_status = "Connected".to_string();
                     println!("TCP Client '{}' connected.", name);
+
+                    // Send version info request
+                    self.tcp_clients.try_send_by_name(&name, service_generate::dlt_generate_service_get_software_version_request().as_slice());
+
                     self.tcp_clients.update_client_stream(&name, stream);
                     self.tcp_clients.set_client_status(&name, true);
                 }
