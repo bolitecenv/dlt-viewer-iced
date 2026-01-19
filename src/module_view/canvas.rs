@@ -251,7 +251,7 @@ impl ModuleCanvas {
                 if self.state.left_mouse_button.is_pressed {
                     if let Some(selected_id) = self.selected_module {
                         if let Some(module) = self.module_widget.get_mut(&selected_id) {
-                            module.module_widget.move_window(self.selected_module_position, position);
+                            module.module_widget.move_window(self.selected_module_position, position, self.ctrl_pressed);
                         }
                     }
 

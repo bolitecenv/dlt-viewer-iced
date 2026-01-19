@@ -1,7 +1,17 @@
-use std::any::Any;
 use iced::{Color, Point, Size, widget::canvas};
+use std::any::Any;
 
-use crate::{components::dlt_data_manager::DltDataRegexItem, module_view::{ChartWidget, GanttChartWidget, canvas::{GRID_SIZE, SNAP_THRESHOLD}, chart_widget::ChartData, gantt_chart_widget::{GanttDataPoint, GanttEndData, GanttStartData}, setting_modals::setting_modal_window::SettingModal}, pages::table::DltMessageRow};
+use crate::{
+    components::dlt_data_manager::DltDataRegexItem,
+    module_view::{
+        ChartWidget, GanttChartWidget,
+        canvas::{GRID_SIZE, SNAP_THRESHOLD},
+        chart_widget::ChartData,
+        gantt_chart_widget::{GanttDataPoint, GanttEndData, GanttStartData},
+        setting_modals::setting_modal_window::SettingModal,
+    },
+    pages::table::DltMessageRow,
+};
 
 // Constants
 pub const RESIZE_HANDLE_SIZE: f32 = 10.0;
@@ -47,7 +57,10 @@ impl ModuleWidget {
     }
 
     pub fn open_settings_modal(&self) -> Option<Box<dyn SettingModal>> {
-        self.module_widget.open_settings_modal(self.id as u32, self.dlt_data_regex_item.as_ref().unwrap().clone())
+        self.module_widget.open_settings_modal(
+            self.id as u32,
+            self.dlt_data_regex_item.as_ref().unwrap().clone(),
+        )
     }
 
     fn process_data_for_widget(&mut self, data: &String) -> Option<WidgetData> {
@@ -70,25 +83,20 @@ impl ModuleWidget {
                 let regex = regex::Regex::new(&dlt_regex_item.regex).unwrap();
                 if regex.is_match(data) {
                     let captures = regex.captures(data).unwrap();
-                    
-                    let label: String = captures.name("Label")
+
+                    let label: String = captures
+                        .name("Label")
                         .map(|m| m.as_str().to_string())
                         .unwrap_or_default();
-                    
+
                     // Check if this is a Start or End event
                     if let Some(start_match) = captures.name("Start") {
                         let start_time: f32 = start_match.as_str().parse().unwrap_or(0.0);
-                        let gantt_data = GanttStartData {
-                            start_time,
-                            label,
-                        };
+                        let gantt_data = GanttStartData { start_time, label };
                         return Some(WidgetData::GanttStart(gantt_data));
                     } else if let Some(end_match) = captures.name("End") {
                         let end_time: f32 = end_match.as_str().parse().unwrap_or(0.0);
-                        let gantt_data = GanttEndData {
-                            end_time,
-                            label,
-                        };
+                        let gantt_data = GanttEndData { end_time, label };
                         return Some(WidgetData::GanttEnd(gantt_data));
                     }
                 }
@@ -199,7 +207,6 @@ pub trait ModuleWidgetWindowView: Send + Sync {
     }
     fn draw(&self, frame: &mut canvas::Frame, dark_mode: bool);
     fn window_draw(&self, frame: &mut canvas::Frame, dark_mode: bool) {
-
         let corner_radius = 8.0;
         let elevation_offset: f32 = 2.0;
 
@@ -210,7 +217,7 @@ pub trait ModuleWidgetWindowView: Send + Sync {
 
         // Draw border
         let shadow_color = if dark_mode {
-        Color::from_rgba(0.0, 0.0, 0.0, 0.5)
+            Color::from_rgba(0.0, 0.0, 0.0, 0.5)
         } else {
             Color::from_rgba(0.0, 0.0, 0.0, 0.2)
         };
@@ -241,7 +248,6 @@ pub trait ModuleWidgetWindowView: Send + Sync {
 
         frame.fill(&bg_path, chart_bg);
 
-
         // Draw border
         let border = canvas::Path::rounded_rectangle(
             window.position,
@@ -259,17 +265,40 @@ pub trait ModuleWidgetWindowView: Send + Sync {
         self.draw(frame, dark_mode);
     }
 
-    fn move_window(&mut self, initial_mouse_position: Point, current_mouse_position: Point) {
-        let window = self.get_window_mut();
-        let offset_x = initial_mouse_position.x - window.initial_position.x;
-        let offset_y = initial_mouse_position.y - window.initial_position.y;
+    fn move_window(
+        &mut self,
+        initial_mouse_position: Point,
+        current_mouse_position: Point,
+        ctrl_pressed: bool,
+    ) {
+        if ctrl_pressed {
+            // Snap to grid
+            let window = self.get_window_mut();
+            let offset_x = initial_mouse_position.x - window.initial_position.x;
+            let offset_y = initial_mouse_position.y - window.initial_position.y;
 
-        let delta_x = current_mouse_position.x - initial_mouse_position.x;
-        let delta_y = current_mouse_position.y - initial_mouse_position.y;
+            let delta_x = current_mouse_position.x - initial_mouse_position.x;
+            let delta_y: f32 = current_mouse_position.y - initial_mouse_position.y;
 
-        // Apply the delta to the current window position
-        window.position.x = initial_mouse_position.x + delta_x - offset_x;
-        window.position.y = initial_mouse_position.y + delta_y - offset_y;
+            let new_pos_x = initial_mouse_position.x + delta_x - offset_x;
+            let new_pos_y = initial_mouse_position.y + delta_y - offset_y;
+
+            window.position.x = sticky_snap_to_grid(new_pos_x, GRID_SIZE, SNAP_THRESHOLD);
+            window.position.y = sticky_snap_to_grid(new_pos_y, GRID_SIZE, SNAP_THRESHOLD);
+            return;
+        } else {
+            // Free move
+            let window = self.get_window_mut();
+            let offset_x = initial_mouse_position.x - window.initial_position.x;
+            let offset_y = initial_mouse_position.y - window.initial_position.y;
+
+            let delta_x = current_mouse_position.x - initial_mouse_position.x;
+            let delta_y = current_mouse_position.y - initial_mouse_position.y;
+
+            // Apply the delta to the current window position
+            window.position.x = initial_mouse_position.x + delta_x - offset_x;
+            window.position.y = initial_mouse_position.y + delta_y - offset_y;
+        }
     }
 
     fn set_window_initial_position(&mut self, position: Point) {
@@ -284,7 +313,7 @@ pub trait ModuleWidgetWindowView: Send + Sync {
 
     fn resize_window(&mut self, resize_type: ResizeType, position: Point) {
         let window = self.get_window_mut();
-        
+
         match resize_type {
             ResizeType::Right => {
                 window.size.width = (position.x - window.position.x).max(MIN_CHART_WIDTH);
@@ -311,7 +340,11 @@ pub trait ModuleWidgetWindowView: Send + Sync {
         println!("Pan not implemented for this widget.");
     }
 
-    fn open_settings_modal(&self, id: u32, dlt_regex_item: DltDataRegexItem) -> Option<Box<dyn SettingModal>> {
+    fn open_settings_modal(
+        &self,
+        id: u32,
+        dlt_regex_item: DltDataRegexItem,
+    ) -> Option<Box<dyn SettingModal>> {
         println!("Settings modal not implemented for this widget.");
         None
     }
