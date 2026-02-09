@@ -1,6 +1,7 @@
 use crate::message::Message;
 use crate::pages::table::DltMessageRow;
 use crate::types::{FrontDltAppIdItem, FrontDltCtxIdItem, FrontDltEcuItem};
+use crate::components::dlt_parser::{parse_dlt_message, ParsedDltMessage};
 
 use std::collections::HashMap;
 use std::ops::Sub;
@@ -8,12 +9,7 @@ use std::sync::{Arc};
 use tokio::sync::Mutex;
 use std::time::Duration;
 
-use bincode::de;
-use dlt_format_parser::{
-    DltFormat, DltParse, LogInfoData, Mtin, ServiceGetLogInfoResponse, ServiceHandler, 
-    ServiceParser, ServiceResponse, ServiceResult, ServiceSetLogLevelRequest, 
-    ServiceSetTraceStatusRequest, find_dlt_header
-};
+use dlt_protocol::*;
 use futures::io::BufReader;
 use iced::{Subscription, Task};
 use tokio::net::TcpStream;
@@ -50,6 +46,9 @@ use std::hash::Hash;
 pub struct ConnectionConfig {
     pub ip: String,
     pub port: String,
+    pub serial_port: String,
+    pub baud_rate: String,
+    pub is_serial: bool,
 }
 
 #[derive(Clone)]
@@ -80,7 +79,11 @@ impl TCPClientsHandler {
             return Err("Client already exists".into());
         }
         
-        let config = ConnectionConfig { ip, port };
+        let config = ConnectionConfig { ip, port, 
+            serial_port: String::new(), 
+            baud_rate: String::new(),
+            is_serial: false,
+        };
         let client = TCPClient {
             name: name.to_string(),
             status: false,
@@ -261,63 +264,56 @@ fn parse_dlt_messages(buffer: &mut Vec<u8>) -> Message {
     let mut current_offset = 0;
     
     loop {
-        match find_dlt_header(buffer, current_offset) {
-            Some(package_len) => {                
-                // Try to parse the DLT message at this offset
-                let parse_buffer = &buffer[current_offset..];
-                match parse_buffer.dlt_parse() {
-                    Ok((dlt_format, remaining)) => {
-                        match dlt_format.extended_header.parse().2 {
-                            Mtin::Log(_) => {
-                                // Successfully parsed a message
-                                let dlt_message_row = DltMessageRow::from_dlt_format(&dlt_format);
-                                parsed_messages.push(dlt_message_row);
-                            }
-
-                            Mtin::Control(_) => {
-                                println!("Control message received");
-
-                                let dlt_header_info = DltMessageRow::from_dlt_format(&dlt_format);
-                                
-                                let mut parser = ServiceParser::new();
-                                if let Ok(service_msg) = parser.parse_raw_message(&dlt_format.payload) {
-                                    println!("Service ID: {}", service_msg.service_id);
-                                    
-                                    // Extract ECU information
-                                    if let Ok(ecu_updates) = extract_service_info(service_msg, dlt_header_info) {
-                                        service_responses.push(ecu_updates);
-                                    }
-                                }
-                            }
-
-                            _ => {
-                                println!("Unknown MTIN message");
-                            }
-                        }
+        let parse_buffer = &buffer[current_offset..];
+        
+        // Try to parse DLT message
+        match parse_dlt_message(parse_buffer) {
+            Ok((parsed_msg, remaining)) => {
+                let package_len = parsed_msg.raw_bytes.len();
+                
+                // Check message type from extended header
+                let msin = parsed_msg.extended_header.msin;
+                let mstp = (msin >> 1) & 0x07; // Extract MSTP (bits 1-3)
+                
+                let mstp_type = MstpType::parse(mstp);
+                
+                match mstp_type {
+                    MstpType::DltTypeLog => {
+                        // Successfully parsed a log message
+                        let dlt_message_row = DltMessageRow::from_parsed_message(&parsed_msg);
+                        parsed_messages.push(dlt_message_row);
                     }
-                    Err(_) => {
-                        if current_offset == 0 {
-                            println!("Failed to parse DLT message at offset {}, discarding entire buffer", current_offset);
-                            buffer.clear();
-                        } else {
-                            // println!("Failed to parse DLT message at offset {}, discarding up to next header", current_offset);
-                            break;
-                        }
+
+                    MstpType::DltTypeControl => {
+                        println!("Control message received (service messages not yet implemented)");
+                        // TODO: Implement service message handling
+                        // For now, just create a basic message row
+                        let dlt_message_row = DltMessageRow::from_parsed_message(&parsed_msg);
+                        parsed_messages.push(dlt_message_row);
+                    }
+
+                    _ => {
+                        println!("Unknown MSTP message type: {:?}", mstp_type);
                     }
                 }
-                current_offset += package_len as usize;
+                
+                current_offset += package_len;
                 if current_offset >= buffer.len() {
                     current_offset = 0;
                     buffer.clear();
                     break;
                 }
             }
-            None => {
-                // The message is incomplete. Wait for more data
-                println!("No valid DLT header found, waiting for more data {} bytes in buffer, {}",
-                    buffer.len(), current_offset);
-                //debug first 50 bytes
-                println!("Buffer snapshot: {:?}", &buffer[current_offset..std::cmp::min(current_offset + 50, buffer.len())]);
+            Err(_) => {
+                if current_offset == 0 {
+                    println!("Failed to parse DLT message at offset {}, waiting for more data", current_offset);
+                    // The message is incomplete. Wait for more data
+                    println!("Buffer has {} bytes, first bytes: {:?}", 
+                        buffer.len(), 
+                        &buffer[..std::cmp::min(50, buffer.len())]);
+                } else {
+                    println!("Failed to parse DLT message at offset {}, discarding up to this point", current_offset);
+                }
                 break;
             }
         }
@@ -336,21 +332,8 @@ fn parse_dlt_messages(buffer: &mut Vec<u8>) -> Message {
 }
 
 // ============================================================================
-// Service Message Extraction
+// Service Message Extraction - TODO: Re-implement with dlt-protocol
 // ============================================================================
-
-fn extract_service_info(
-    service_msg: dlt_format_parser::ServiceMessage,
-    dlt_header_info: DltMessageRow,
-) -> Result<EcuUpdateInfo, String> {
-    let mut handler = ServiceInfoExtractor::new(dlt_header_info);
-    let mut parser = ServiceParser::new();
-    
-    parser.handle_message(&mut handler, service_msg)
-        .map_err(|e| format!("Failed to handle service message: {:?}", e))?;
-    
-    handler.extracted_info.ok_or_else(|| "No info extracted".to_string())
-}
 
 #[derive(Debug, Clone)]
 pub struct EcuUpdateInfo {
@@ -365,169 +348,16 @@ pub struct AppUpdateInfo {
     pub merge_with_existing: bool,
 }
 
-struct ServiceInfoExtractor {
-    extracted_info: Option<EcuUpdateInfo>,
-    dlt_header_info: Option<DltMessageRow>,
+/*
+// TODO: Re-implement service message handling with dlt-protocol
+fn extract_service_info(
+    service_msg: ServiceMessage,
+    dlt_header_info: DltMessageRow,
+) -> Result<EcuUpdateInfo, String> {
+    // Service message handling needs to be re-implemented
+    Err("Service messages not yet implemented".to_string())
 }
-
-impl ServiceInfoExtractor {
-    fn new(dlt_header_info: DltMessageRow) -> Self {
-        Self {
-            extracted_info: None,
-            dlt_header_info: Some(dlt_header_info),
-        }
-    }
-}
-
-impl ServiceHandler for ServiceInfoExtractor {
-    fn handle_set_log_level(
-        &mut self, 
-        request: ServiceSetLogLevelRequest
-    ) -> ServiceResult<ServiceResponse> {
-        println!(
-            "Setting log level to {} for APID: {:?}, CTID: {:?}", 
-            request.new_log_level, 
-            std::str::from_utf8(&request.apid).unwrap_or("invalid"),
-            std::str::from_utf8(&request.ctid).unwrap_or("invalid")
-        );
-        Ok(ServiceResponse::success(vec![]))
-    }
-
-    fn handle_set_trace_status(
-        &mut self, 
-        request: ServiceSetTraceStatusRequest
-    ) -> ServiceResult<ServiceResponse> {
-        println!("Set trace status - not implemented");
-        Ok(ServiceResponse::success(vec![]))
-    }
-
-    fn handle_get_log_info(
-        &mut self, 
-        response: ServiceGetLogInfoResponse
-    ) -> ServiceResult<ServiceResponse> {
-        println!("Processing get log info response");
-        
-        let mut app_updates = Vec::new();
-        
-        match &response.log_info_data {
-            LogInfoData::ApplicationIds(apps) => {
-                for app_data in apps {
-                    let app_id = String::from_utf8_lossy(&app_data.app_id)
-                        .trim_end_matches('\0')
-                        .to_string();
-                    
-                    println!("App ID: {:?}", &app_id);
-                    println!("Context Count: {}", app_data.context_id_count);
-                    
-                    // Convert context list to FrontDltCtxIdItem vector
-                    let contexts: Vec<FrontDltCtxIdItem> = app_data
-                        .context_id_list
-                        .iter()
-                        .map(|ctx| {
-                            println!(
-                                "  Context ID: {:?}",
-                                std::str::from_utf8(&ctx.context_id).unwrap_or("invalid")
-                            );
-                            println!("  Log Level: {}", ctx.log_level);
-                            println!("  Trace Status: {}", ctx.trace_status);
-                            
-                            if let Some(desc) = &ctx.context_description {
-                                if let Ok(desc_str) = std::str::from_utf8(desc) {
-                                    println!("  Description: {}", desc_str);
-                                }
-                            }
-                            
-                            FrontDltCtxIdItem {
-                                context_id: String::from_utf8_lossy(&ctx.context_id).to_string(),
-                                log_level: ctx.log_level,
-                                trace_status: ctx.trace_status,
-                                description: ctx
-                                    .context_description
-                                    .as_ref()
-                                    .and_then(|d| std::str::from_utf8(d).ok())
-                                    .unwrap_or("")
-                                    .to_string(),
-                            }
-                        })
-                        .collect();
-                    
-                    let app_description = app_data
-                        .app_description
-                        .as_ref()
-                        .and_then(|d| std::str::from_utf8(d).ok())
-                        .unwrap_or("")
-                        .to_string();
-                    
-                    if !app_description.is_empty() {
-                        println!("App Description: {}", app_description);
-                    }
-                    
-                    let app_info = FrontDltAppIdItem {
-                        apid: app_id,
-                        description: app_description,
-                        ctx_ids: contexts,
-                    };
-                    
-                    app_updates.push(AppUpdateInfo {
-                        app_info,
-                        merge_with_existing: true,
-                    });
-                }
-            }
-            _ => {
-                println!("Unsupported log info data type");
-            }
-        }
-        
-        if !app_updates.is_empty() {
-            self.extracted_info = Some(EcuUpdateInfo {
-                ecu_id: "ECU1".to_string(), // You might want to extract this from the message
-                app_updates,
-                software_version: None,
-            });
-        }
-        
-        Ok(ServiceResponse::success(vec![]))
-    }
-
-    fn handle_get_software_version(
-        &mut self, 
-        version: &String
-    ) -> ServiceResult<ServiceResponse> {
-        println!("Software Version: {}", version);
-        
-        self.extracted_info = Some(EcuUpdateInfo {
-            ecu_id: "ECU1".to_string(),
-            app_updates: Vec::new(),
-            software_version: Some(version.clone()),
-        });
-        
-        Ok(ServiceResponse::success(vec![]))
-    }
-    
-    fn handle_store_configuration(&mut self) -> ServiceResult<ServiceResponse> {
-        println!("Storing configuration");
-        Ok(ServiceResponse::success(vec![]))
-    }
-
-    fn handle_swc_injection(
-        &mut self, 
-        service_id: u32, 
-        payload: &[u8]
-    ) -> ServiceResult<ServiceResponse> {
-        println!("SWC Injection");
-        Ok(ServiceResponse::success(vec![]))
-    }
-
-    fn handle_unknown_service(
-        &mut self, 
-        service_id: u32, 
-        payload: &[u8]
-    ) -> ServiceResult<ServiceResponse> {
-        println!("Unknown service: {}", service_id);
-        Ok(ServiceResponse::success(vec![]))
-    }
-}
+*/
 
 // ============================================================================
 // Helper Functions for ECU List Management

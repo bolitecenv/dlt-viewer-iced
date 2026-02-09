@@ -1,4 +1,5 @@
 use crate::message::Message;
+use crate::components::dlt_parser::ParsedDltMessage;
 use iced::{
     Border, Color, Element, Length, Padding, Shadow, Theme,
     alignment::{Horizontal, Vertical},
@@ -6,7 +7,6 @@ use iced::{
     widget::{Space, button, column, container, row, scrollable, text},
 };
 use iced::widget::lazy;
-use dlt_format_parser::DltFormat;
 
 // Number of rows to render at once (adjust based on performance needs)
 const VISIBLE_ROWS: usize = 100;
@@ -25,18 +25,18 @@ pub struct DltMessageRow {
 }
 
 impl DltMessageRow {
-    pub fn from_dlt_format(
-        dlt_format: &DltFormat,
+    pub fn from_parsed_message(
+        parsed_msg: &ParsedDltMessage,
     ) -> Self {
         Self {
             index: 0,
-            timestamp: dlt_format.get_timestamp_string(),
-            ecu_id: dlt_format.standard_header_extra.get_ecu().trim_end_matches('\0').to_string(),
-            app_id: dlt_format.extended_header.get_apid().trim_end_matches('\0').to_string(),
-            context_id: dlt_format.extended_header.get_ctid().trim_end_matches('\0').to_string(),
-            message_type: "Unknown".to_string(),
-            payload: dlt_format_parser::MessageList::parse(&dlt_format.payload, dlt_format.payload.len()).get_entire_string(),
-            length: dlt_format.payload.len(),
+            timestamp: parsed_msg.get_timestamp_string(),
+            ecu_id: parsed_msg.get_ecu_id(),
+            app_id: parsed_msg.get_app_id(),
+            context_id: parsed_msg.get_context_id(),
+            message_type: "Log".to_string(), // TODO: parse actual message type
+            payload: parsed_msg.parse_payload().unwrap_or_else(|| "".to_string()),
+            length: parsed_msg.payload.len(),
         }
     }
 }

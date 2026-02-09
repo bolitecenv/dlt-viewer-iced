@@ -1,6 +1,7 @@
 use crate::components::tcp_handler::EcuUpdateInfo;
 use crate::modal_window::modal_window::ModalWindowMessage;
 use crate::module_view::canvas::{ModuleCanvasMessage};
+use crate::pages::overview::ConnectionType;
 use crate::plugin::PluginMessage;
 use crate::{
     pages::table::DltMessageRow,
@@ -33,6 +34,10 @@ pub enum Message {
     UpdateTraceStatus(String),
     SaveContextSettings,
     CancelEditContext,
+    ConnectionTypeSelected(ConnectionType),
+    SerialPortChanged(String),
+    BaudRateChanged(String),
+    ConnectSerial,
 
     ScrollChanged(Viewport),
 

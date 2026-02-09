@@ -666,12 +666,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f27ae1dd37df86211c42e150270f82743308803d90a6f6e6651cd730d5e1732f"
 
 [[package]]
-name = "debug_print"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f215f9b7224f49fb73256115331f677d868b34d18b65dbe4db392e6021eea90"
-
-[[package]]
 name = "dispatch"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -697,12 +691,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "dlt-protocol"
+version = "0.1.0"
+dependencies = [
+ "byteorder",
+]
+
+[[package]]
 name = "dlt-viewer-iced-app"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "byteorder",
  "chrono",
- "dlt_format_parser",
+ "dlt-protocol",
  "futures",
  "iced",
  "iced_aw",
@@ -710,14 +712,6 @@ dependencies = [
  "regex",
  "serde",
  "tokio",
-]
-
-[[package]]
-name = "dlt_format_parser"
-version = "0.1.0"
-dependencies = [
- "byteorder",
- "debug_print",
 ]
 
 [[package]]
@@ -3068,7 +3062,19 @@ dependencies = [
  "mio",
  "pin-project-lite",
  "socket2",
+ "tokio-macros",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "tokio-macros"
+version = "2.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af407857209536a95c8e56f8231ef2c2e2aff839b22e07a1ffcbc617e9db9fa5"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

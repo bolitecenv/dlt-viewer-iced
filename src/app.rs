@@ -5,13 +5,13 @@ use crate::module_view::ModuleCanvas;
 use crate::modal_window::modal_window::*;
 use crate::module_view::canvas::ModuleCanvasMessage;
 use crate::pages::ecu_setting::{EcuListView, EcuSelection};
+use crate::pages::overview::ConnectionType;
 use crate::pages::{self};
 use crate::plugin::{DashboardContext, PluginMessage};
 use crate::plugin_registry::PluginRegistry;
 use crate::types::FrontDltEcuItem;
 use crate::message::ConnectionEvent;
 use crate::ui::footer_bar;
-use dlt_format_parser::service_generate;
 use iced::futures::{self};
 use iced::widget::stack;
 use iced::{
@@ -40,6 +40,10 @@ pub struct Dashboard {
     pub tcp_client_name: String,
     pub tcp_ip: String,
     pub tcp_port: String,
+    pub serial_port: String,
+    pub baud_rate: String,
+    pub is_serial: bool,
+    pub connection_type: ConnectionType,
     pub connection_status: String,
     pub messages: Vec<DltMessageRow>,
     pub message_id_counter: u32,
@@ -64,6 +68,10 @@ impl Default for Dashboard {
             tcp_client_name: "main_tcp_client".to_string(),
             tcp_ip: "127.0.0.1".to_string(),
             tcp_port: "3490".to_string(),
+            serial_port: "/dev/ttyUSB0".to_string(),
+            baud_rate: "9600".to_string(),
+            is_serial: false,
+            connection_type: ConnectionType::TCP,
             connection_status: "Disconnected".to_string(),
             messages: Vec::new(),
             message_id_counter: 0,
@@ -127,8 +135,8 @@ impl Dashboard {
                     self.connection_status = "Connected".to_string();
                     println!("TCP Client '{}' connected.", name);
 
-                    // Send version info request
-                    self.tcp_clients.try_send_by_name(&name, service_generate::dlt_generate_service_get_software_version_request().as_slice());
+                    // TODO: Re-implement service message generation with dlt-protocol
+                    // self.tcp_clients.try_send_by_name(&name, service_generate::dlt_generate_service_get_software_version_request().as_slice());
 
                     self.tcp_clients.update_client_stream(&name, stream);
                     self.tcp_clients.set_client_status(&name, true);
@@ -258,6 +266,19 @@ impl Dashboard {
                     return task;
                 }
             },
+
+            Message::ConnectionTypeSelected(ConnectionType) => {
+                // Handle connection type selection
+                match ConnectionType {
+                    ConnectionType::TCP => {
+                        self.is_serial = false;
+                    }
+                    ConnectionType::Serial => {
+                        self.is_serial = true;
+                    }
+                }
+                self.connection_type = ConnectionType;
+            },
             
             _ => {}
         }
@@ -305,7 +326,10 @@ impl Dashboard {
             Page::Overview => pages::overview::view( &self.tcp_clients, 
                                                             &self.tcp_client_name,
                                                           &self.tcp_ip, 
-                                                                        &self.tcp_port),
+                                                                        &self.tcp_port,
+                                                                        Some(self.connection_type),
+                                                                        &self.serial_port,
+                                                                        &self.baud_rate),
             Page::ECUSetting => self.ecu_list_view.view(self.dark_mode),
             Page::Settings => pages::settings::view(
                 self.dark_mode,
