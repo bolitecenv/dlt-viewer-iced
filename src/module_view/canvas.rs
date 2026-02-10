@@ -5,6 +5,7 @@ use crate::modal_window::confirm_modal_window::ConfirmModal;
 use crate::modal_window::modal_window::ModalWindowView;
 use crate::module_view::ChartWidget;
 use crate::module_view::GanttChartWidget;
+use crate::module_view::RegisterWidget;
 use crate::module_view::ModuleWidget;
 use crate::module_view::chart_widget::{ChartData, ChartSettings};
 use crate::module_view::circular_context_menu::*;
@@ -16,7 +17,7 @@ use crate::module_view::meter_widget::MeterWidget;
 use crate::module_view::module_widget::*;
 use iced::widget::Action;
 use iced::widget::canvas::{self, Canvas};
-use iced::{Color, Element, Length, Point, Rectangle, Renderer, Task, Theme, keyboard, mouse};
+use iced::{Color, Element, Length, Point, Rectangle, Renderer, Size, Task, Theme, keyboard, mouse};
 use std::collections::HashMap;
 
 pub const GRID_SIZE: f32 = 50.0;
@@ -46,6 +47,7 @@ pub enum ModuleCanvasMessage {
     AddChart,
     AddGanttChart,
     AddMeter,
+    AddRegister,
     Delete,
     Duplicate,
     Settings,
@@ -199,6 +201,31 @@ impl ModuleCanvas {
 
                 self.circular_context_menu = None;
             }
+            ModuleCanvasMessage::AddRegister => {
+                println!("Add Register Widget action triggered");
+
+                let register_widget = RegisterWidget::new(
+                    Point::new(100.0, 100.0),
+                    Size::new(400.0, 300.0),
+                    "Register Monitor".to_string(),
+                );
+
+                let new_id = self.module_widget.keys().max().unwrap_or(&0) + 1;
+
+                let dlt_data_regex_item = DltDataRegexItem {
+                    regex: r"#REG:\s*(?P<Name>\w+):\s*(?P<Value>0x[0-9a-fA-F]+|[0-9]+)".to_string(),
+                    id: new_id as usize,
+                    description: "Register Pattern".to_string(),
+                };
+
+                self.module_widget.insert(new_id, ModuleWidget {
+                    id: new_id,
+                    module_widget: Box::new(register_widget),
+                    dlt_data_regex_item: Some(dlt_data_regex_item),
+                });
+
+                self.circular_context_menu = None;
+            }
             ModuleCanvasMessage::Delete => {
                 println!("Delete action triggered");
                 if let Some(menu) = &self.circular_context_menu {
@@ -305,6 +332,7 @@ impl ModuleCanvas {
                         let message = match action {
                             CircularContextMenuAction::AddChart => ModuleCanvasMessage::AddChart,
                             CircularContextMenuAction::AddGanttChart => ModuleCanvasMessage::AddGanttChart,
+                            CircularContextMenuAction::AddRegister => ModuleCanvasMessage::AddRegister,
                             CircularContextMenuAction::Delete => ModuleCanvasMessage::Delete,
                             CircularContextMenuAction::Duplicate => ModuleCanvasMessage::Duplicate,
                             CircularContextMenuAction::Settings => ModuleCanvasMessage::Settings,
@@ -340,7 +368,8 @@ impl ModuleCanvas {
                         let message = match action {
                             ContextMenuAction::AddChart => ModuleCanvasMessage::AddChart,
                             ContextMenuAction::AddGanttChart => ModuleCanvasMessage::AddGanttChart,
-                            ContextMenuAction::AddMeterWindow => ModuleCanvasMessage::AddGanttChart,
+                            ContextMenuAction::AddMeterWindow => ModuleCanvasMessage::AddMeter,
+                            ContextMenuAction::AddRegister => ModuleCanvasMessage::AddRegister,
                             ContextMenuAction::Delete => ModuleCanvasMessage::Delete,
                             ContextMenuAction::Duplicate => ModuleCanvasMessage::Duplicate,
                             ContextMenuAction::Settings => ModuleCanvasMessage::Settings,

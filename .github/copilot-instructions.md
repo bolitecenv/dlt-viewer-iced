@@ -9,18 +9,20 @@ A desktop GUI application for viewing and analyzing **DLT (Diagnostic Log and Tr
 
 ### Core Components
 - **`src/app.rs`**: Central `Dashboard` struct using Iced's Elm architecture (update/view/subscription pattern)
-- **`src/message.rs`**: All UI events as `Message` enum variants (NavigateTo, ConnectionEvent, PluginMessage, ModuleCanvasMessage, etc.)
+- **`src/message.rs`**: All UI events as `Message` enum variants (NavigateTo, ConnectionEvent, SerialConnectionEvent, PluginMessage, ModuleCanvasMessage, etc.)
 - **`crate/dlt-protocol/`**: **Git submodule** - DLT protocol library for parsing/generating binary DLT messages (headers, payloads)
 - **`src/components/dlt_parser.rs`**: Parser adapter that uses `dlt-protocol` to parse incoming TCP bytes into `ParsedDltMessage`
 - **`src/components/tcp_handler.rs`**: Manages multiple named TCP clients with async streams, batches DLT messages
+- **`src/components/serial_handler.rs`**: Manages serial port connections with async streams, uses same DLT parser
 - **`src/module_view/`**: Canvas-based widget system for data visualization (charts, Gantt charts, meters)
 - **`src/plugin_registry.rs`**: Dynamic plugin system - auto-generates registration code via `build.rs`
 
 ### Critical Data Flow
 1. **TCP → Parser → Batch**: `tcp_handler.rs` reads bytes from `TcpStream`, uses `parse_dlt_message()` from `dlt_parser.rs` to extract `ParsedDltMessage` structs, batches messages
-2. **Batch → Dashboard**: Sends `Message::BatchUpdate` with `Vec<DltMessageRow>` and ECU metadata updates
-3. **Dashboard → Widgets**: In `process_dlt_messages()`, iterates over `module_canvas.module_widget` HashMap, calls `add_new_data()` with regex matching
-4. **Widgets → Display**: Each widget implements `ModuleWidgetWindowView` trait, draws to Iced canvas using `iced::widget::canvas` primitives
+2. **Serial → Parser → Batch**: `serial_handler.rs` reads bytes from `SerialStream`, uses same `parse_dlt_message()` function, batches messages
+3. **Batch → Dashboard**: Sends `Message::BatchUpdate` with `Vec<DltMessageRow>` and ECU metadata updates
+4. **Dashboard → Widgets**: In `process_dlt_messages()`, iterates over `module_canvas.module_widget` HashMap, calls `add_new_data()` with regex matching
+5. **Widgets → Display**: Each widget implements `ModuleWidgetWindowView` trait, draws to Iced canvas using `iced::widget::canvas` primitives
 
 ## Key Patterns
 
@@ -68,6 +70,29 @@ git clone --recursive git@github.com:bolitecenv/dlt-viewer-iced.git
 # Or if already cloned, initialize submodules
 git submodule update --init --recursive
 ```
+
+### Connection Types
+
+#### TCP/IP Connection
+The viewer can connect to DLT daemons via TCP:
+- Configure IP address and port
+- Uses `tokio::net::TcpStream` for async I/O
+- Connection managed via `TCPClientsHandler`
+- Supports multiple simultaneous TCP connections
+
+#### Serial/TTY Connection  
+The viewer can connect to DLT sources via serial ports:
+- Configure serial port path (e.g., `/dev/ttyUSB0`, `/dev/ttyACM0`, `COM3`)
+- Configure baud rate (default: 115200)
+- Uses `tokio-serial` crate for async serial I/O
+- Auto-reconnects on disconnection
+- Uses same DLT parser as TCP connections
+
+Both connection types:
+- Share the same `parse_dlt_messages()` function
+- Generate `Message::BatchUpdate` with parsed DLT messages
+- Support multiple named connections simultaneously
+- Display in unified connection manager UI
 
 ### Building & Running
 ```bash
@@ -122,6 +147,33 @@ The test server (`examples/dlt_test_server.rs`) demonstrates:
 - Adding verbose payloads with `PayloadBuilder`
 - Sending messages over TCP
 - Message counter and timestamp management
+
+### Testing Serial Connections
+To test serial port connections without physical hardware, you can use virtual serial ports:
+
+#### On Linux:
+```bash
+# Create virtual serial ports using socat
+socat -d -d pty,raw,echo=0 pty,raw,echo=0
+# This creates two linked ports, e.g., /dev/pts/3 and /dev/pts/4
+
+# In one terminal, send DLT messages to one port
+cat dlt_messages.bin > /dev/pts/3
+
+# In the viewer, connect to the other port
+# Serial Port: /dev/pts/4
+# Baud Rate: 115200
+```
+
+#### On macOS:
+```bash
+# Create virtual serial ports using socat (install via brew)
+brew install socat
+socat -d -d pty,raw,echo=0 pty,raw,echo=0
+# Use the created /dev/ttys### ports
+```
+
+Alternatively, modify the test server to send to serial instead of TCP, or use real hardware with a USB-to-serial adapter.
 
 ### Adding New Widget Types
 1. Create widget struct (e.g., `MeterWidget`) with settings struct

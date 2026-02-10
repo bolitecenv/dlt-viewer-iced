@@ -19,6 +19,13 @@ pub enum ConnectionEvent {
 }
 
 #[derive(Debug, Clone)]
+pub enum SerialConnectionEvent {
+    Connected(String),
+    Disconnected(String),
+    Error(String),
+}
+
+#[derive(Debug, Clone)]
 pub enum Message {
     ToggleTheme,
     NavigateTo(Page),
@@ -38,6 +45,7 @@ pub enum Message {
     SerialPortChanged(String),
     BaudRateChanged(String),
     ConnectSerial,
+    SerialConnectionEvent(SerialConnectionEvent),
 
     ScrollChanged(Viewport),
 

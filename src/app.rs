@@ -1,4 +1,5 @@
 use crate::components::tcp_handler::{TCPClientsHandler, apply_ecu_updates};
+use crate::components::serial_handler;
 use crate::components::{navigation, top_bar};
 use crate::message::{Message, Page};
 use crate::module_view::ModuleCanvas;
@@ -10,7 +11,7 @@ use crate::pages::{self};
 use crate::plugin::{DashboardContext, PluginMessage};
 use crate::plugin_registry::PluginRegistry;
 use crate::types::FrontDltEcuItem;
-use crate::message::ConnectionEvent;
+use crate::message::{ConnectionEvent, SerialConnectionEvent};
 use crate::ui::footer_bar;
 use iced::futures::{self};
 use iced::widget::stack;
@@ -109,6 +110,8 @@ impl Dashboard {
             Message::TcpClientNameChanged(name) => self.tcp_client_name = name,
             Message::TcpIpChanged(ip) => self.tcp_ip = ip,
             Message::TcpPortChanged(port) => self.tcp_port = port,
+            Message::SerialPortChanged(port) => self.serial_port = port,
+            Message::BaudRateChanged(rate) => self.baud_rate = rate,
             Message::ConnectTcp => {
                 let _ip = self.tcp_ip.clone();
                 let _port = self.tcp_port.clone();
@@ -123,6 +126,22 @@ impl Dashboard {
                 }
 
                 return self.tcp_clients.try_connect(&self.tcp_client_name);
+            }
+            Message::ConnectSerial => {
+                let serial_port = self.serial_port.clone();
+                let baud_rate = self.baud_rate.clone();
+                
+                if self.tcp_clients.add_serial_client(&self.tcp_client_name, serial_port, baud_rate).is_err() {
+                    self.modal_window = Some(Box::new(crate::modal_window::confirm_modal_window::ConfirmModal::new(
+                        "Error".to_string(),
+                        format!("Serial Client with name '{}' already exists.", self.tcp_client_name),
+                    )));
+                    return Task::none();
+                }
+                
+                // Mark client as active - subscription will handle connection
+                self.tcp_clients.set_client_status(&self.tcp_client_name, true);
+                self.connection_status = "Connecting to serial port...".to_string();
             }
             Message::ClearMessages => {
                 self.messages.clear();
@@ -148,6 +167,21 @@ impl Dashboard {
                 ConnectionEvent::Error(err) => {
                     println!("Connection error: {}", err);
                     self.connection_status = format!("Error: {}", err);
+                }
+            },
+            Message::SerialConnectionEvent(event) => match event {
+                SerialConnectionEvent::Connected(name) => {
+                    self.connection_status = format!("Serial {} Connected", name);
+                    println!("Serial Client '{}' connected.", name);
+                }
+                SerialConnectionEvent::Disconnected(name) => {
+                    println!("Serial Client '{}' disconnected.", name);
+                    self.connection_status = format!("Serial {} Disconnected", name);
+                    self.tcp_clients.set_client_status(&name, false);
+                }
+                SerialConnectionEvent::Error(err) => {
+                    println!("Serial connection error: {}", err);
+                    self.connection_status = format!("Serial Error: {}", err);
                 }
             },
             Message::PluginMessage(plugin_name, msg) => {
@@ -293,21 +327,34 @@ impl Dashboard {
             })
         });
 
-        let mut tcp_subscription: Subscription<Message> = Subscription::none();
+        let mut subscriptions = vec![tick_subscription];
 
-        // Register subscriptions for all active TCP clients
+        // Register subscriptions for all active clients (both TCP and Serial)
         for (name, client) in self.tcp_clients.get_all_clients() {
             if client.status == true {
-                if let Some(stream) = &client.stream {
-                    tcp_subscription = TCPClientsHandler::create_client_subscription(
+                if client.config.is_serial {
+                    // Create serial subscription
+                    let serial_config = serial_handler::SerialConfig {
+                        port: client.config.serial_port.clone(),
+                        baud_rate: client.config.baud_rate.parse().unwrap_or(115200),
+                    };
+                    subscriptions.push(serial_handler::create_serial_subscription(
                         name.clone(),
-                        stream.clone(),
-                    );
+                        serial_config,
+                    ));
+                } else {
+                    // Create TCP subscription
+                    if let Some(stream) = &client.stream {
+                        subscriptions.push(TCPClientsHandler::create_client_subscription(
+                            name.clone(),
+                            stream.clone(),
+                        ));
+                    }
                 }
             }
         }
 
-        Subscription::batch(vec![tick_subscription, tcp_subscription])
+        Subscription::batch(subscriptions)
     }
 
     pub fn theme(&self) -> Theme {

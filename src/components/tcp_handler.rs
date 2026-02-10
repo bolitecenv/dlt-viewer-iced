@@ -32,7 +32,7 @@ enum ConnectionState {
 // Constants
 // ============================================================================
 
-const BUFFER_SIZE: usize = 4096*4096*10; // 10 MB buffer
+pub const BUFFER_SIZE: usize = 4096*4096*10; // 10 MB buffer
 const RECONNECT_DELAY_SECS: u64 = 5;
 
 // ============================================================================
@@ -83,6 +83,31 @@ impl TCPClientsHandler {
             serial_port: String::new(), 
             baud_rate: String::new(),
             is_serial: false,
+        };
+        let client = TCPClient {
+            name: name.to_string(),
+            status: false,
+            config,
+            stream: None,
+            buffer: Vec::new(),
+            messages_parsed: 0,
+        };
+        self.clients.insert(name.to_string(), client);
+        Ok(())
+    }
+
+    pub fn add_serial_client(&mut self, name: &str, serial_port: String, baud_rate: String) -> Result<(), String> {
+        // Check if client already exists
+        if self.clients.contains_key(name) {
+            return Err("Client already exists".into());
+        }
+        
+        let config = ConnectionConfig { 
+            ip: String::new(), 
+            port: String::new(), 
+            serial_port, 
+            baud_rate,
+            is_serial: true,
         };
         let client = TCPClient {
             name: name.to_string(),
@@ -258,7 +283,7 @@ impl TCPClientsHandler {
     }
 }
 
-fn parse_dlt_messages(buffer: &mut Vec<u8>) -> Message {
+pub fn parse_dlt_messages(buffer: &mut Vec<u8>) -> Message {
     let mut parsed_messages = Vec::new();
     let mut service_responses = Vec::new();
     let mut current_offset = 0;

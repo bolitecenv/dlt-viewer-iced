@@ -22,6 +22,7 @@ pub enum ContextMenuAction {
     AddChart,
     AddGanttChart,
     AddMeterWindow,
+    AddRegister,
     Delete,
     Duplicate,
     Settings,
@@ -38,6 +39,11 @@ impl ContextMenu {
             ContextMenuItem {
                 label: "Add Gantt Chart".to_string(),
                 action: ContextMenuAction::AddGanttChart,
+                separator_after: false,
+            },
+            ContextMenuItem {
+                label: "Add Register".to_string(),
+                action: ContextMenuAction::AddRegister,
                 separator_after: true,  // Separator after this item
             },
             ContextMenuItem {

@@ -22,6 +22,7 @@ pub struct CircularContextMenuItem {
 pub enum CircularContextMenuAction {
     AddChart,
     AddGanttChart,
+    AddRegister,
     Delete,
     Duplicate,
     Settings,
@@ -41,6 +42,12 @@ impl CircularContextMenu {
                 angle_start: 0.0,
                 angle_end: 0.0,
                 action: CircularContextMenuAction::AddGanttChart,
+            },
+            CircularContextMenuItem {
+                label: "Add Register".to_string(),
+                angle_start: 0.0,
+                angle_end: 0.0,
+                action: CircularContextMenuAction::AddRegister,
             },
             CircularContextMenuItem {
                 label: "Delete".to_string(),

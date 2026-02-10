@@ -8,9 +8,11 @@ pub mod circular_context_menu;
 pub mod context_menu;
 pub mod meter_widget;
 pub mod gantt_chart_widget;
+pub mod register_widget;
 
 // Re-export commonly used items
 pub use canvas::ModuleCanvas;
 pub use chart_widget::ChartWidget;
 pub use module_widget::ModuleWidget;
 pub use gantt_chart_widget::GanttChartWidget;
+pub use register_widget::RegisterWidget;

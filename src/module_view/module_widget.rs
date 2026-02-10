@@ -4,10 +4,11 @@ use std::any::Any;
 use crate::{
     components::dlt_data_manager::DltDataRegexItem,
     module_view::{
-        ChartWidget, GanttChartWidget,
+        ChartWidget, GanttChartWidget, RegisterWidget,
         canvas::{GRID_SIZE, SNAP_THRESHOLD},
         chart_widget::ChartData,
         gantt_chart_widget::{GanttDataPoint, GanttEndData, GanttStartData},
+        register_widget::RegisterWidgetData,
         setting_modals::setting_modal_window::SettingModal,
     },
     pages::table::DltMessageRow,
@@ -36,6 +37,7 @@ pub enum WidgetData {
     GanttStart(GanttStartData),
     GanttEnd(GanttEndData),
     Gantt(GanttDataPoint),
+    Register(RegisterWidgetData),
 }
 
 pub struct ModuleWidget {
@@ -99,6 +101,26 @@ impl ModuleWidget {
                         let gantt_data = GanttEndData { end_time, label };
                         return Some(WidgetData::GanttEnd(gantt_data));
                     }
+                }
+            }
+        } else if self.module_widget.as_any().is::<RegisterWidget>() {
+            if let Some(dlt_regex_item) = &self.dlt_data_regex_item {
+                let regex = regex::Regex::new(&dlt_regex_item.regex).unwrap();
+                if regex.is_match(data) {
+                    let captures = regex.captures(data).unwrap();
+                    
+                    let name: String = captures
+                        .name("Name")
+                        .map(|m| m.as_str().to_string())
+                        .unwrap_or_default();
+                    
+                    let value: String = captures
+                        .name("Value")
+                        .map(|m| m.as_str().to_string())
+                        .unwrap_or_default();
+                    
+                    let register_data = RegisterWidgetData { name, value };
+                    return Some(WidgetData::Register(register_data));
                 }
             }
         }

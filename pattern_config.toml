@@ -1,0 +1,57 @@
+# DLT Payload Pattern Configuration
+# This file defines regex patterns for extracting structured data from DLT message payloads
+# Patterns are matched against the payload string and extracted data is displayed in widgets
+
+# Register Pattern
+# Matches: #REG: REGISTER_NAME: 0x1234
+[[pattern]]
+name = "register"
+widget_type = "register"
+description = "Hardware register values"
+regex = '#REG:\s*(?P<Name>\w+):\s*(?P<Value>0x[0-9a-fA-F]+|[0-9]+)'
+example = "#REG: STATUS_REG: 0x1234"
+
+# Chart Pattern (X-Y coordinates)
+# Matches: X: 1.23 Y: 4.56
+[[pattern]]
+name = "chart_xy"
+widget_type = "chart"
+description = "X-Y coordinate data for plotting"
+regex = 'X:\s*(?P<X>[-+]?[0-9]*\.?[0-9]+).*Y:\s*(?P<Y>[-+]?[0-9]*\.?[0-9]+)'
+example = "X: 1.23 Y: 4.56"
+
+# Gantt Chart Pattern (Start event)
+# Matches: START: 123.45 LABEL: TaskA
+[[pattern]]
+name = "gantt_start"
+widget_type = "gantt"
+description = "Gantt chart start event"
+regex = 'START:\s*(?P<Start>\d+\.?\d*)\s*LABEL:\s*(?P<Label>\w+)'
+example = "START: 123.45 LABEL: TaskA"
+
+# Gantt Chart Pattern (End event)
+# Matches: END: 456.78 LABEL: TaskA
+[[pattern]]
+name = "gantt_end"
+widget_type = "gantt"
+description = "Gantt chart end event"
+regex = 'END:\s*(?P<End>\d+\.?\d*)\s*LABEL:\s*(?P<Label>\w+)'
+example = "END: 456.78 LABEL: TaskA"
+
+# Temperature Sensor Pattern
+# Matches: #TEMP: 23.5°C
+[[pattern]]
+name = "temperature"
+widget_type = "meter"
+description = "Temperature sensor reading"
+regex = '#TEMP:\s*(?P<Value>[-+]?[0-9]*\.?[0-9]+)'
+example = "#TEMP: 23.5°C"
+
+# Custom Key-Value Pattern
+# Matches: #KEY: value_name: 123
+[[pattern]]
+name = "key_value"
+widget_type = "register"
+description = "Generic key-value pairs"
+regex = '#(?P<Name>\w+):\s*(?P<Value>[-+]?[0-9]*\.?[0-9]+|0x[0-9a-fA-F]+)'
+example = "#VOLTAGE: 3.3"
